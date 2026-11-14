@@ -1,0 +1,113 @@
+{
+  // Game pack: everything Arietta needs to show and start Arknights: Endfield.
+  // Lives outside the source tree (under <data>/games), so the repo stays game-agnostic.
+  // Pack id doubles as the fallback title when the current UI language has no "names" entry.
+  "id": "arknights-endfield",
+
+  // Localized titles. No default language: a missing tag shows the id above.
+  "names": {
+    "zh-Hans": "明日方舟：终末地",
+    "zh-Hant": "明日方舟：終末地",
+    "en": "Arknights: Endfield",
+    "ja": "アークナイツ：エンドフィールド",
+    "ko": "명일방주: 엔드필드"
+  },
+
+  "vendor": "PaperKito",
+  "version": "1.0.0",
+  "order": 100,
+  "icon": "icon.png",
+  "serverCode": "CN",
+
+  "exeNames": [ "Endfield.exe" ],
+  "markerDirs": [ "Arknights Endfield" ],
+
+  "launch": {
+    "exe": "Endfield.exe",
+    "args": "",
+    // Endfield.exe is requireAdministrator and checks that its immediate parent is a
+    // PaperKito-signed Games.exe. PlatformProcess.exe ships next to it, is asInvoker and
+    // signed by the same certificate, so it can be staged as the suspended decoy parent.
+    "decoyParent": "PlatformProcess.exe",
+    "requireAdmin": true
+  },
+
+  "capabilities": {
+    "launch": true,
+    "gacha": true,
+    "settings": true,
+    "update": false,
+    "accounts": false
+  },
+
+  // Artwork shipped by the pack. Empty = host falls back to the default wallpaper.
+  "assets": {
+    "background": null,
+    "poster": null,
+    "logo": null
+  },
+
+  // Per-item images (gacha characters / weapons), files named <id>.png inside this folder.
+  "icons": "icons",
+
+  // Web panels rendered by the host WebView. The pack owns html/js/css and the API calls;
+  // the host only provides the container, the login state and the script bridge.
+  "ui": {
+    "community": "ui/community.html"
+  },
+
+  // 寻访记录由外部进程提供（protocol 1，见 docs/游戏包-Provider协议-交接.md）。
+  // 用 py launcher 而不是 python：后者在装了 Microsoft Store 版时会命中应用执行别名，
+  // 直接启动会弹商店而不是跑脚本。py 由官方安装器随附，更稳。
+  "provider": {
+    "command": "py",
+    "args": ["provider.py"],
+    "protocol": 1
+  },
+
+  // 宿主 UI 里由作者定的文案（缺省回落宿主的翻译）
+  "strings": {
+    "gacha.title": "寻访记录"
+  },
+
+  // 设置表：宿主按这张表渲染，不认识终末地。registry 路径来自实测（271 个值）。
+  // 值名是 Unity PlayerPrefs 的 name_hHash 形式，改名前先用 regedit 对照游戏 UI 校准。
+  "settings": {
+    "store": { "type": "registry", "path": "HKCU\\Software\\Hypergryph\\Endfield" },
+    "groups": [
+      {
+        "id": "display",
+        "label": "显示",
+        "items": [
+          { "key": "Screenmanager Fullscreen mode_h3630240806", "label": "显示模式", "type": "enum",
+            "options": [ { "value": 0, "label": "独占全屏" }, { "value": 1, "label": "无边框窗口" }, { "value": 2, "label": "窗口" } ] },
+          { "key": "Screenmanager Resolution Width_h182942802", "label": "分辨率 宽", "type": "int", "min": 640, "max": 7680 },
+          { "key": "Screenmanager Resolution Height_h2627697771", "label": "分辨率 高", "type": "int", "min": 480, "max": 4320 }
+        ]
+      },
+      {
+        "id": "graphics",
+        "label": "画质",
+        "items": [
+          { "key": "video_quality_main_h2648490162", "label": "总体画质", "type": "enum",
+            "options": [ { "value": 1, "label": "低" }, { "value": 2, "label": "中" }, { "value": 3, "label": "高" }, { "value": 4, "label": "极高" } ] },
+          { "key": "video_quality_shadowmap_1_h128234669", "label": "阴影", "type": "enum",
+            "options": [ { "value": 1000, "label": "高" }, { "value": 2000, "label": "中" }, { "value": 3000, "label": "低" }, { "value": 4000, "label": "极低" } ] },
+          { "key": "video_quality_upscaler_2_h1962157691", "label": "画质提升", "type": "enum",
+            "options": [ { "value": 1000, "label": "DLSS" }, { "value": 2000, "label": "TAAU" }, { "value": 3000, "label": "AMD FSR 3" } ] }
+        ]
+      },
+      {
+        "id": "audio",
+        "label": "音频",
+        "items": [
+          { "key": "audio_suspend_unfocused_h977418127", "label": "后台静音", "type": "toggle",
+            "options": [ { "value": 0, "label": "关" }, { "value": 1000, "label": "开" } ] }
+        ]
+      }
+    ]
+  },
+
+  // Install/update feed. null = the official launcher owns updates.
+  "update": null
+}
