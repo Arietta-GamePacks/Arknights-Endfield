@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>终末地 · 寻访记录 WinUI3 原生页预览</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#0e0f15; color:#f2f2f2; min-height:100vh; padding:22px 30px 40px;
+    display:flex; flex-direction:column; gap:12px; align-items:center;
+    font-family:"Segoe UI Variable","Segoe UI","Microsoft YaHei UI",sans-serif;
+  }
+  :root {
+    --acc:#e6d800;
+    --text:#f2f2f2; --sec:#a6a6a6; --ter:#7c8290;
+    --line:rgba(255,255,255,.09);
+    --s6:#ffa500; --s5:#c864e0; --s4:#5eaaed; --avg:#3ba272;
+    --green:#00e079; --red:#c83c23;
+  }
+  .note { align-self:flex-start; max-width:1280px; font-size:12.5px; color:#9aa0ab; line-height:1.85; }
+  .note b { color:#d6dae2; }
+  .note code { color:var(--acc); font-size:12px; }
+
+  /* ===== Arietta 窗口（与 preview-endfield-settings.html 同一套骨架） ===== */
+  .window {
+    position:relative; width:1280px; height:740px; border-radius:12px; overflow:hidden;
+    background:
+      radial-gradient(900px 480px at 26% 8%, rgba(230,216,0,.10), transparent 70%),
+      radial-gradient(880px 560px at 80% 38%, rgba(86,104,140,.34), transparent 72%),
+      linear-gradient(160deg, #2c3040 0%, #20242f 48%, #14161e 100%);
+    display:flex; flex-direction:column;
+  }
+  .titlebar { position:absolute; top:0; left:0; right:0; height:50px; display:flex; align-items:center;
+    justify-content:space-between; padding:0 12px 0 14px; z-index:6; }
+  .avatar { width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(135deg,#e6d800 0%,#8c8400 100%); box-shadow:0 0 0 1px rgba(255,255,255,.28); }
+  .wctrl { display:flex; }
+  .wctrl span { width:42px; height:34px; display:flex; align-items:center; justify-content:center; color:#e8eaf2; }
+  .wctrl span:hover { background:rgba(255,255,255,.1); }
+
+  .sidebar { position:absolute; top:50px; left:0; bottom:0; width:66px; display:flex; flex-direction:column;
+    align-items:center; gap:8px; padding:12px 0 14px; z-index:5; }
+  .nav { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,.72); }
+  .nav:hover { background:rgba(255,255,255,.08); }
+  .nav.active { background:var(--acc); color:#1a1a05; }
+  .spacer { flex:1; }
+
+  /* ===== 抽卡页 ===== */
+  .content { position:absolute; top:50px; left:66px; right:0; bottom:64px; z-index:4;
+    display:flex; flex-direction:column; min-width:0; }
+  .pagehead { height:44px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 8px 0 32px; }
+  .pagetitle { font-size:20px; font-weight:700; display:flex; align-items:center; gap:10px; }
+  .pagetitle .tag { font-size:10.5px; font-weight:500; color:var(--acc); border:1px solid rgba(230,216,0,.4);
+    padding:2px 8px; border-radius:20px; background:rgba(230,216,0,.08); }
+  .tools { display:flex; align-items:center; gap:12px; position:relative; }
+
+  .combo, .toolbtn, .sb-main, .sb-arrow, .panebtn {
+    height:32px; display:inline-flex; align-items:center; gap:8px; border-radius:6px;
+    background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.10);
+    color:var(--text); font-size:13px; font-family:inherit; cursor:pointer; white-space:nowrap;
+  }
+  .combo { min-width:170px; padding:0 10px; justify-content:space-between; }
+  .toolbtn { padding:0 12px; }
+  .combo:hover, .toolbtn:hover, .sb-main:hover, .sb-arrow:hover { background:rgba(255,255,255,.10); }
+  .chev { font-size:10px; color:var(--sec); margin-left:6px; }
+  .ico { width:14px; height:14px; flex:none; }
+  .splitbtn { display:inline-flex; position:relative; }
+  .sb-main { border-radius:6px 0 0 6px; border-right:none; padding:0 12px; }
+  .sb-arrow { width:28px; border-radius:0 6px 6px 0; justify-content:center; padding:0; }
+  .panebtn { width:34px; justify-content:center; background:var(--acc); border:none; border-radius:14px 0 0 14px;
+    color:#1a1a05; font-weight:700; font-size:16px; }
+
+  /* Flyout / MenuFlyout：宿主 App.xaml 的亚克力底 */
+  .flyout { position:absolute; z-index:40; min-width:220px; padding:6px; border-radius:8px;
+    background:rgba(30,33,44,.96); backdrop-filter:blur(22px);
+    box-shadow:0 10px 32px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.10);
+    display:none; }
+  .flyout.open { display:block; }
+  .flyout .mi { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:5px;
+    font-size:12.5px; cursor:pointer; }
+  .flyout .mi:hover { background:rgba(255,255,255,.09); }
+  .flyout .mi .k { margin-left:auto; font-size:10.5px; color:var(--ter); }
+  .flyout .sep { height:1px; background:var(--line); margin:5px 4px; }
+  .flyout .lbl { padding:8px 10px 4px; font-size:11px; color:var(--ter); }
+  .flyout .check { display:flex; align-items:center; gap:9px; padding:6px 10px; font-size:12.5px; cursor:pointer; }
+  .flyout .check .box { width:16px; height:16px; border-radius:4px; background:var(--acc); flex:none;
+    display:flex; align-items:center; justify-content:center; color:#1a1a05; font-size:11px; font-weight:800; }
+  .flyout .check.off .box { background:transparent; box-shadow:inset 0 0 0 1px rgba(255,255,255,.35); color:transparent; }
+
+  /* SplitView.Content：横向卡池列 */
+  .body { flex:1; position:relative; min-height:0; overflow:hidden; }
+  .columns { position:absolute; inset:0; display:flex; gap:12px; padding:8px 24px 16px;
+    overflow-x:auto; overflow-y:hidden; align-items:flex-start; }
+  .columns::-webkit-scrollbar { height:9px; }
+  .columns::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:6px; }
+  .columns::-webkit-scrollbar-track { background:rgba(255,255,255,.04); }
+
+  .poolcol { position:relative; width:268px; flex:none; padding:12px 10px 14px; border-radius:8px;
+    background:rgba(28,30,39,.74); backdrop-filter:blur(20px);
+    border:1px solid var(--line); box-shadow:0 8px 26px rgba(0,0,0,.38); }
+  .poolcol.hidden { display:none; }
+  .phead { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .phead .nm { font-size:16px; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .phead .tt { font-size:16px; flex:none; }
+  .prange { font-size:11.5px; color:var(--sec); margin-top:2px; min-height:14px; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .pbadge { display:inline-block; font-size:10.5px; color:var(--acc); margin-top:5px;
+    border:1px solid rgba(230,216,0,.32); border-radius:20px; padding:1px 8px; background:rgba(230,216,0,.06); }
+  .pdivider { height:1px; background:var(--line); margin:7px 0 5px; }
+  .stat { display:flex; justify-content:space-between; align-items:center; margin:3px 0; font-size:12px; }
+  .stat .l { display:flex; gap:4px; }
+  .stat .l b { font-weight:650; }
+  .stat .r { font-variant-numeric:tabular-nums; }
+  .c-avg { color:var(--avg); } .c-6 { color:var(--s6); } .c-5 { color:var(--s5); } .c-4 { color:var(--s4); }
+
+  /* cwc:Segmented：等分 + 选中底 + 底部强调条 */
+  .segmented { display:flex; margin:10px 0 6px; border-radius:6px; overflow:hidden;
+    background:rgba(255,255,255,.045); position:relative; }
+  .seg { flex:1; text-align:center; padding:6px 0 7px; font-size:15px; font-weight:650; cursor:pointer;
+    border-bottom:2px solid transparent; color:var(--sec); }
+  .seg.on { background:rgba(255,255,255,.09); border-bottom-color:var(--acc); }
+  .seg.on.c-6 { color:var(--s6); } .seg.on.c-5 { color:var(--s5); }
+
+  /* BarItemTemplate：行高 30 / 头像 28 / 渐变条 22 / up! 列 28 */
+  .barrow { height:30px; display:flex; align-items:center; position:relative; }
+  .barrow .av { width:32px; flex:none; }
+  .barrow .av i { display:flex; width:28px; height:28px; border-radius:4px; align-items:center; justify-content:center;
+    font-style:normal; font-size:11px; font-weight:700; color:rgba(255,255,255,.92); }
+  .barrow .track { flex:1; height:22px; position:relative; border-radius:2px; margin:0 -4px; overflow:hidden; }
+  .barrow .track .fill { position:absolute; inset:0; opacity:.4; }
+  .barrow .track .nm { position:absolute; left:6px; top:0; height:22px; display:flex; align-items:center;
+    font-size:13px; color:#fff; text-overflow:ellipsis; white-space:nowrap; overflow:hidden; max-width:calc(100% - 8px); }
+  .barrow .up { width:28px; flex:none; text-align:center; font-size:12px; font-style:italic; color:var(--s6); }
+  .barrow .pity { min-width:24px; flex:none; text-align:right; font-size:13px; font-variant-numeric:tabular-nums; }
+  .barrow.cur .track .nm { color:var(--sec); }
+  .rar-list.hide { display:none; }
+
+  /* SplitView.Pane：右侧 508 物品统计 */
+  .splitpane { position:absolute; top:0; right:0; bottom:0; width:508px; z-index:12;
+    background:rgba(26,28,37,.92); backdrop-filter:blur(26px); border-radius:12px 0 0 12px;
+    box-shadow:-14px 0 40px rgba(0,0,0,.38); padding:18px 20px; overflow-y:auto;
+    transform:translateX(100%); transition:transform .22s ease; }
+  .splitpane.open { transform:translateX(0); }
+  .panehead { font-size:16px; font-weight:650; margin-bottom:14px; display:flex; justify-content:space-between; }
+  .panehead span { font-size:11.5px; color:var(--ter); font-weight:400; }
+  .itemgrid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px 8px; }
+  .item { width:80px; display:flex; flex-direction:column; gap:3px; align-items:center; }
+  .item .pic { width:80px; height:80px; border-radius:8px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; font-size:12px; text-align:center;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.10); padding:4px; }
+  .item .pic .q { position:absolute; left:0; right:0; bottom:0; height:3px; }
+  .item .cnt { font-size:11px; color:var(--sec); }
+  .item .nmx { font-size:10.5px; color:var(--ter); max-width:80px; text-align:center;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* 底部栏 */
+  .bottombar { position:absolute; left:0; right:0; bottom:0; height:64px; z-index:7;
+    background:rgba(10,11,18,.5); backdrop-filter:blur(24px); display:flex; align-items:center;
+    gap:16px; padding:0 26px; font-size:12px; color:rgba(255,255,255,.62); }
+  .toggle { display:flex; align-items:center; gap:8px; cursor:pointer; color:rgba(255,255,255,.85); }
+  .switch { width:34px; height:19px; border-radius:12px; background:rgba(255,255,255,.18); position:relative; transition:background .15s; }
+  .switch::after { content:""; position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%;
+    background:#fff; transition:transform .15s; }
+  .toggle.on .switch { background:var(--acc); }
+  .toggle.on .switch::after { transform:translateX(15px); background:#1a1a05; }
+  .legend { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .legend i { display:inline-block; width:22px; height:7px; border-radius:3px; vertical-align:middle; margin-right:5px; }
+  .toast { margin-left:auto; color:#9ff0b3; opacity:0; transition:opacity .25s; font-size:12px; }
+
+  /* 标注模式：把 WinUI3 控件名贴到对应元素上 */
+  .anno { display:none; position:absolute; z-index:30; font-size:9.5px; line-height:1.4; padding:2px 6px;
+    border-radius:4px; background:var(--acc); color:#1a1a05; font-weight:700; white-space:nowrap;
+    box-shadow:0 2px 8px rgba(0,0,0,.4); pointer-events:none; }
+  body.anno-on .anno { display:block; }
+  .anno.tl { top:-11px; left:-3px; } .anno.br { bottom:-11px; right:-3px; }
+  .anno-wrap { position:relative; }
+</style>
+</head>
+<body>
+
+<div class="note">
+  <b>寻访记录 · WinUI3 原生页预览稿</b>（对照宿主 <code>src/Features/GachaLog/GachaLogPage.xaml</code> + Starward 的 <code>GachaStatsCard.xaml</code>）。
+  这一版是<b>给宿主写的 XAML 打样</b>，不是 WebView 面板：窗口骨架、44px 页头、268px 卡池列、Segmented、渐变垫抽条、508px 右侧 SplitView 全部按鸣潮那套 1:1 复刻，只把数据换成终末地。
+  <b>可交互</b>：更新记录下拉 / 设置 Flyout / 账号切换 / 6★·5★ 分栏 / 隐藏卡池 / 右侧物品统计开合 / 控件标注开关。数据为演示样例。
+</div>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="avatar"></div>
+    <div class="wctrl">
+      <span><svg width="12" height="12" viewBox="0 0 12 12" stroke="#fff" stroke-width="1.4"><path d="M1 6h10"/></svg></span>
+      <span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="1.4"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5"/></svg></span>
+      <span><svg width="12" height="12" viewBox="0 0 12 12" stroke="#fff" stroke-width="1.4"><path d="m1.5 1.5 9 9M10.5 1.5l-9 9"/></svg></span>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21h-6v-6h-6v6H3z"/></svg></div>
+    <div class="nav"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 9h4M8 7v4M15 8.5h.01M17.5 11h.01"/><path d="M17.4 5H6.6a4.6 4.6 0 0 0-4.55 5.3l.9 5.5A3.4 3.4 0 0 0 6.3 18.5c1 0 1.9-.45 2.5-1.2l1-1.3h4.4l1 1.3a3.15 3.15 0 0 0 2.5 1.2 3.4 3.4 0 0 0 3.35-2.7l.9-5.5A4.6 4.6 0 0 0 17.4 5Z"/></svg></div>
+    <div class="nav active"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="M4 9h16M9 9v10"/></svg></div>
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2.2"/><circle cx="9" cy="16" r="2.2"/></svg></div>
+    <div class="spacer"></div>
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.35.95a7 7 0 0 0-2.42-1.4L13.7 2.6h-3.4l-.39 2.54a7 7 0 0 0-2.42 1.4l-2.35-.95-2 3.46 2 1.55A7 7 0 0 0 5 12c0 .47.05.94.14 1.4l-2 1.55 2 3.46 2.35-.95a7 7 0 0 0 2.42 1.4l.39 2.54h3.4l.39-2.54a7 7 0 0 0 2.42-1.4l2.35.95 2-3.46-2-1.55c.09-.46.14-.93.14-1.4Z"/></svg></div>
+  </div>
+
+  <div class="content">
+    <div class="pagehead">
+      <div class="pagetitle">寻访记录 <span class="tag">WinUI3 预览</span></div>
+      <div class="tools">
+        <div class="combo anno-wrap" id="btnAccount">
+          <span id="accountText">管理员(10000001)</span><span class="chev">▾</span>
+          <span class="anno tl">ComboBox · 账号</span>
+          <div class="flyout" id="accountMenu" style="top:36px;left:0"></div>
+        </div>
+
+        <div class="splitbtn anno-wrap">
+          <button class="sb-main" id="btnRefresh">
+            <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3"/></svg>
+            更新记录
+          </button>
+          <button class="sb-arrow" id="btnRefreshMenu">▾</button>
+          <span class="anno tl">SplitButton · 更新</span>
+          <div class="flyout" id="refreshMenu" style="top:36px;right:0">
+            <div class="mi" data-act="cache">更新（保存的链接）<span class="k">cached</span></div>
+            <div class="mi" data-act="all">更新（全部）<span class="k">full</span></div>
+            <div class="sep"></div>
+            <div class="mi" data-act="url">粘贴寻访记录链接</div>
+            <div class="mi" data-act="log">读取本地日志（u8_token）</div>
+          </div>
+        </div>
+
+        <button class="toolbtn anno-wrap" id="btnSettings">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"/></svg>
+          设置
+          <span class="anno tl">Button + Flyout</span>
+        </button>
+        <div class="flyout" id="settingsMenu" style="top:36px;right:44px;width:246px">
+          <div class="lbl">其他设置</div>
+          <div class="mi" data-act="copy">复制寻访记录链接</div>
+          <div class="sep"></div>
+          <div class="lbl">链接失效？ 重新获取后再更新</div>
+          <div class="mi" data-act="clear">清除已保存的链接</div>
+          <div class="mi" data-act="lang">记录语言：简体中文 <span class="k">zh-cn</span></div>
+          <div class="mi" data-act="export">导入 &amp; 导出（UGF / Excel / CSV）</div>
+          <div class="sep"></div>
+          <div class="lbl">隐藏卡池（勾选 = 显示）</div>
+          <div id="poolChecks"></div>
+          <div class="sep"></div>
+          <div class="mi" data-act="delete" style="color:#e2705f">删除此 UID 的全部记录</div>
+        </div>
+
+        <button class="panebtn anno-wrap" id="btnPane" title="物品统计">⋯
+          <span class="anno br">SplitView.Pane</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="columns" id="columns"></div>
+      <div class="splitpane" id="splitPane">
+        <div class="panehead">物品统计 <span>GridView · 80×80 方图 + 品质底条</span></div>
+        <div class="itemgrid" id="itemGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottombar">
+    <div class="toggle" id="btnAnno"><span class="switch"></span><span>WinUI3 控件标注</span></div>
+    <div class="legend">
+      <span><i style="background:linear-gradient(90deg,#00e079 55%,transparent 55%)"></i>垫抽条（绿 &lt; 66）</span>
+      <span><i style="background:linear-gradient(90deg,#c83c23 88%,transparent 88%)"></i>近保底（红 ≥ 66 / 80）</span>
+      <span style="color:var(--s6)">6★</span><span style="color:var(--s5)">5★</span><span style="color:var(--s4)">4★</span>
+    </div>
+    <span class="toast" id="toast"></span>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
+  { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* 演示数据：字段形状对齐宿主 PoolStat / PoolViewModel → 可直接由 gacha.py 的模型映射 */
+const HUES = ["#4b6ea8","#8a5ba8","#a86a3e","#3f8b7d","#9a4d63","#5d6f9c","#8b7a3f","#6b5aa8"];
+const hue = (s) => HUES[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % HUES.length];
+
+const POOLS = [
+  { id:"special", name:"特许寻访 · 演示期", total:78,
+    range:"2026/10/28 09:12:40 - 2026/11/14 21:40:06", badge:"大保底 34 / 120",
+    avg:"38.50", up:"42.00 (2)", c6:"2 [2.56%]", c5:"9 [11.54%]", c4:"67 [85.90%]",
+    upColumn:true, pity:23,
+    six:[
+      { name:"洁尔佩塔", pity:42, up:true, tag:"UP", time:"2026/11/09 12:03", free:false },
+      { name:"莱瓦汀", pity:73, up:false, tag:"歪", time:"2026/10/30 20:11", free:false },
+    ],
+    five:[
+      { name:"秋栗", pity:9, time:"2026/11/12 08:22" },
+      { name:"埃特拉", pity:7, time:"2026/11/06 19:41" },
+      { name:"狼卫", pity:10, time:"2026/11/01 11:05" },
+      { name:"赛希", pity:6, time:"2026/10/29 22:17" },
+    ] },
+  { id:"rerun", name:"重构寻访 #1", total:34,
+    range:"2026/11/02 14:20:11 - 2026/11/14 21:12:33", badge:"官方累计 34 / 120",
+    avg:"32.00", up:"32.00 (1)", c6:"1 [2.94%]", c5:"4 [11.76%]", c4:"29 [85.29%]",
+    upColumn:true, pity:9,
+    six:[ { name:"余烬", pity:32, up:true, tag:"UP", time:"2026/11/05 18:36", free:false } ],
+    five:[
+      { name:"艾维文娜", pity:8, time:"2026/11/13 10:02" },
+      { name:"卡契尔", pity:5, time:"2026/11/08 16:44" },
+    ] },
+  { id:"joint", name:"辉光庆典", total:20,
+    range:"2026/10/18 20:04:02 - 2026/10/24 23:51:19", badge:"小保底 80 · 无大保底",
+    avg:"—", up:"—", c6:"0 [0.00%]", c5:"3 [15.00%]", c4:"17 [85.00%]",
+    upColumn:false, pity:20,
+    six:[],
+    five:[
+      { name:"安塔尔", pity:6, time:"2026/10/23 21:10" },
+      { name:"弧光", pity:8, time:"2026/10/21 09:33" },
+    ] },
+  { id:"standard", name:"基础寻访", total:60,
+    range:"2026/09/12 08:31:55 - 2026/11/13 22:08:41", badge:"保底独立 · 80",
+    avg:"56.00", up:"—", c6:"1 [1.67%]", c5:"7 [11.67%]", c4:"52 [86.67%]",
+    upColumn:false, pity:4,
+    six:[ { name:"骏卫", pity:56, up:false, tag:"常驻", time:"2026/10/17 13:27", free:false } ],
+    five:[
+      { name:"晞光", pity:10, time:"2026/11/11 07:48" },
+      { name:"萤石", pity:9, time:"2026/10/29 15:20" },
+      { name:"红隼", pity:7, time:"2026/10/02 20:14" },
+    ] },
+  { id:"weapon", name:"限定申领 · 演示期", total:30,
+    range:"2026/11/01 11:20:08 - 2026/11/14 20:55:12", badge:"武器 40 / 80 保底",
+    avg:"28.00", up:"28.00 (1)", c6:"1 [3.33%]", c5:"4 [13.33%]", c4:"25 [83.33%]",
+    upColumn:true, pity:2,
+    six:[ { name:"白夜铳", pity:28, up:true, tag:"UP", time:"2026/11/07 21:33", free:false } ],
+    five:[
+      { name:"澄明", pity:6, time:"2026/11/12 14:09" },
+      { name:"碎星", pity:8, time:"2026/11/03 10:41" },
+    ] },
+  { id:"rerunw", name:"重构申领 #2", total:20,
+    range:"2026/11/09 09:15:30 - 2026/11/14 19:02:44", badge:"按版本期次分段",
+    avg:"—", up:"—", c6:"0 [0.00%]", c5:"2 [10.00%]", c4:"18 [90.00%]",
+    upColumn:false, pity:20,
+    six:[],
+    five:[ { name:"旧誓", pity:7, time:"2026/11/13 18:20" } ] },
+];
+
+const ITEMS = [
+  { n:"洁尔佩塔", c:2, q:6 }, { n:"莱瓦汀", c:1, q:6 }, { n:"余烬", c:1, q:6 },
+  { n:"骏卫", c:1, q:6 }, { n:"白夜铳", c:1, q:6 },
+  { n:"秋栗", c:3, q:5 }, { n:"埃特拉", c:2, q:5 }, { n:"狼卫", c:2, q:5 },
+  { n:"赛希", c:2, q:5 }, { n:"艾维文娜", c:2, q:5 },
+  { n:"安塔尔", c:1, q:5 }, { n:"弧光", c:1, q:5 }, { n:"晞光", c:2, q:5 },
+  { n:"澄明", c:1, q:5 }, { n:"旧誓", c:1, q:5 },
+];
+
+/* BarItemTemplate：CreateBarBrush 的硬切渐变（绿 < 66 / 红 >= 66，80 为硬保底） */
+function barRow(r, upColumn, isCurrent) {
+  const pct = Math.min(100, Math.round(r.pity / 80 * 100));
+  const color = r.pity >= 66 ? "#c83c23" : "#00e079";
+  const fill = `linear-gradient(to right, ${color} 0%, ${color} ${pct}%, rgba(0,0,0,0) ${pct}%)`;
+  const av = r.name && !isCurrent
+    ? `<span class="av"><i style="background:${hue(r.name)}">${esc(r.name.slice(0,1))}</i></span>`
+    : `<span class="av"></span>`;
+  const up = upColumn
+    ? `<span class="up" style="opacity:${r.up ? 1 : 0}">up!</span>`
+    : "";
+  const tag = r.tag ? `<span style="font-size:10px;opacity:.7;margin-left:5px">${esc(r.tag)}</span>` : "";
+  return `<div class="barrow ${isCurrent ? "cur" : ""}" title="${esc(r.time || "")}">
+    ${av}
+    <span class="track"><span class="fill" style="background:${fill}"></span>
+      <span class="nm">${esc(isCurrent ? "已垫" : r.name)}${tag}</span></span>
+    ${up}<span class="pity">${esc(r.pity)}</span>
+  </div>`;
+}
+
+function poolColumn(p) {
+  const six = [
+    barRow({ name:"已垫", pity:p.pity, time:p.range }, p.upColumn, true),
+    ...(p.six.length ? p.six.map(r => barRow(r, p.upColumn, false))
+      : [`<div style="font-size:11.5px;color:var(--ter);padding:8px 0">暂无 6★ 记录</div>`]),
+  ].join("");
+  const five = [
+    barRow({ name:"已垫", pity:4, time:p.range }, false, true),
+    ...p.five.map(r => barRow(r, false, false)),
+  ].join("");
+  return `<div class="poolcol" data-pool="${p.id}">
+    <div class="phead"><span class="nm">${esc(p.name)}</span><span class="tt">${p.total}</span></div>
+    <div class="prange">${esc(p.range)}</div>
+    <div class="pbadge">${esc(p.badge)}</div>
+    <div class="pdivider"></div>
+    <div class="stat c-avg"><span class="l"><b>6★</b><span>平均</span>${p.up !== "—" ? "<span>UP</span>" : ""}</span>
+      <span class="r">${esc(p.avg)}${p.up !== "—" ? " / " + esc(p.up) : ""}</span></div>
+    <div class="stat c-6"><span class="l"><b>6★</b><span>统计</span></span><span class="r">${esc(p.c6)}</span></div>
+    <div class="stat c-5"><span class="l"><b>5★</b><span>统计</span></span><span class="r">${esc(p.c5)}</span></div>
+    <div class="stat c-4"><span class="l"><b>4★</b><span>统计</span></span><span class="r">${esc(p.c4)}</span></div>
+    <div class="segmented">
+      <div class="seg c-6 on" data-rar="6">6★</div><div class="seg c-5" data-rar="5">5★</div>
+    </div>
+    <div class="rar-list" data-rar="6">${six}</div>
+    <div class="rar-list hide" data-rar="5">${five}</div>
+    <span class="anno tl" style="display:none">PoolViewModel · 268px 列</span>
+  </div>`;
+}
+
+function renderColumns() {
+  $("columns").innerHTML = POOLS.map(poolColumn).join("");
+  $("poolChecks").innerHTML = POOLS.map(p =>
+    `<div class="check" data-pool="${p.id}"><span class="box">✓</span>${esc(p.name)}</div>`).join("");
+}
+
+function renderItems() {
+  $("itemGrid").innerHTML = ITEMS.map(it => {
+    const q = it.q >= 6 ? "#ffd751" : "#a97ee3";
+    return `<div class="item">
+      <div class="pic" style="background:linear-gradient(150deg,${hue(it.n)},rgba(0,0,0,.45))">${esc(it.n)}
+        <span class="q" style="background:${q}"></span></div>
+      <span class="cnt">${it.c}</span><span class="nmx">${esc(it.n)}</span>
+    </div>`;
+  }).join("");
+}
+
+let toastTimer = null;
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text; t.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.opacity = 0, 2200);
+}
+
+function closeFlyouts(except) {
+  document.querySelectorAll(".flyout.open").forEach(el => { if (el !== except) el.classList.remove("open"); });
+}
+function toggleFlyout(id) {
+  const el = $(id);
+  const open = !el.classList.contains("open");
+  closeFlyouts(el);
+  el.classList.toggle("open", open);
+}
+
+/* 列内 Segmented：6★ / 5★ 列表切换 */
+$("columns").addEventListener("click", (e) => {
+  const seg = e.target.closest(".seg");
+  if (!seg) return;
+  const col = seg.closest(".poolcol");
+  col.querySelectorAll(".seg").forEach(s => s.classList.toggle("on", s === seg));
+  const rar = seg.dataset.rar;
+  col.querySelectorAll(".rar-list").forEach(list => list.classList.toggle("hide", list.dataset.rar !== rar));
+});
+
+/* 更新记录 / 设置 / 账号 */
+$("btnRefreshMenu").onclick = () => toggleFlyout("refreshMenu");
+$("btnSettings").onclick = () => toggleFlyout("settingsMenu");
+$("btnAccount").onclick = (e) => {
+  if (e.target.closest("#accountMenu")) return;
+  toggleFlyout("accountMenu");
+};
+$("accountMenu").innerHTML = [
+  ["管理员(10000001)", "10000001"], ["测试号(10000002)", "10000002"],
+].map(([label, uid]) => `<div class="mi" data-uid="${uid}">${label}</div>`).join("");
+$("accountMenu").addEventListener("click", (e) => {
+  const mi = e.target.closest("[data-uid]");
+  if (!mi) return;
+  $("accountText").textContent = mi.textContent;
+  closeFlyouts();
+  toast("已切换账号（预览模拟）");
+});
+$("btnRefresh").onclick = () => toast("正在同步寻访记录…（预览模拟）");
+
+document.querySelectorAll(".flyout .mi").forEach(mi => mi.onclick = () => {
+  const act = mi.dataset.act;
+  if (!act) return;
+  const labels = {
+    cache:"已用保存的链接增量同步", all:"已全量同步 6 个卡池",
+    url:"粘贴链接导入（预览模拟）", log:"已读取本地日志 u8_token",
+    copy:"链接已复制", clear:"已清除保存的链接", lang:"记录语言：简体中文",
+    export:"导出 UGF / Excel / CSV（预览模拟）", delete:"删除记录（预览模拟，未执行）",
+  };
+  toast(labels[act] || "预览模拟");
+  closeFlyouts();
+});
+
+/* 隐藏卡池（勾选 = 显示，对齐 InitializeGachaPools） */
+$("poolChecks").addEventListener("click", (e) => {
+  const row = e.target.closest(".check");
+  if (!row) return;
+  row.classList.toggle("off");
+  const col = document.querySelector(`.poolcol[data-pool="${row.dataset.pool}"]`);
+  if (col) col.classList.toggle("hidden", row.classList.contains("off"));
+});
+
+/* 右侧 SplitView.Pane */
+$("btnPane").onclick = () => $("splitPane").classList.toggle("open");
+
+/* 控件标注 */
+$("btnAnno").onclick = () => {
+  const on = document.body.classList.toggle("anno-on");
+  $("btnAnno").classList.toggle("on", on);
+  document.querySelectorAll(".poolcol > .anno").forEach(a => a.style.display = on ? "block" : "none");
+};
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".flyout") && !e.target.closest("#btnRefreshMenu")
+      && !e.target.closest("#btnSettings") && !e.target.closest("#btnAccount")) {
+    closeFlyouts();
+  }
+});
+
+renderColumns();
+renderItems();
+</script>
+</body>
+</html>

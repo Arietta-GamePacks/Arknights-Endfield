@@ -1,0 +1,8 @@
+<Project>
+  <!-- 构建中间产物放包外：签名会哈希包内每个文件，obj/bin 不能混进包目录 -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>..\build-out\obj-settings-provider\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>..\build-out\obj-settings-provider\</MSBuildProjectExtensionsPath>
+    <OutputPath>..\build-out\bin-settings-provider\</OutputPath>
+  </PropertyGroup>
+</Project>

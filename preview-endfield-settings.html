@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>终末地 · 画面设置 HTML 预览（v5 交互式）</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI Variable","Segoe UI","Microsoft YaHei UI",sans-serif; }
+  :root { --acc:#7677e8; }
+  body { background:#0e0f15; color:#fff; padding:26px 32px 44px; display:flex; flex-direction:column; gap:12px; align-items:center; }
+  .note { align-self:flex-start; max-width:1280px; font-size:12.5px; color:#9aa0ab; line-height:1.8; }
+  .note b { color:#c8ccd4; }
+
+  /* ===== 应用窗口（Arietta 现有画面设置页风格） ===== */
+  .window {
+    position:relative; width:1280px; height:740px; border-radius:12px; overflow:hidden;
+    background:
+      radial-gradient(900px 480px at 28% 10%, rgba(124,106,200,.55), transparent 70%),
+      radial-gradient(860px 560px at 78% 40%, rgba(88,100,154,.42), transparent 72%),
+      linear-gradient(160deg, #343750 0%, #262a3d 45%, #171a28 100%);
+    display:flex;
+  }
+  .titlebar { position:absolute; top:0; left:0; right:0; height:50px; display:flex; align-items:center; justify-content:space-between; padding:0 12px 0 14px; z-index:5; }
+  .avatar { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#9b86dc 0%,#4c5bb0 100%); box-shadow:0 0 0 1px rgba(255,255,255,.28); }
+  .wctrl { display:flex; }
+  .wctrl span { width:42px; height:34px; display:flex; align-items:center; justify-content:center; color:#e8eaf2; }
+  .wctrl span:hover { background:rgba(255,255,255,.1); }
+
+  .sidebar { width:66px; margin-top:50px; display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 14px; position:relative; z-index:4; }
+  .nav { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.78); }
+  .nav:hover { background:rgba(255,255,255,.08); }
+  .nav.active { background:var(--acc); color:#fff; }
+  .spacer { flex:1; }
+
+  .content { flex:1; margin-top:50px; padding:20px 26px 90px 4px; display:flex; flex-direction:column; min-width:0; z-index:3; }
+  .grid { display:grid; grid-template-columns:1fr 1.08fr; column-gap:26px; align-items:start; }
+  .section h2 { font-size:22px; font-weight:700; letter-spacing:.3px; }
+  .row { margin-top:14px; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .row.flow { display:flex; flex-direction:column; gap:10px; }
+
+  .field label { display:block; font-size:13.5px; color:rgba(255,255,255,.92); margin-bottom:7px; }
+
+  .ctrl {
+    position:relative; height:36px; border-radius:8px; padding:0 32px 0 12px;
+    background:rgba(12,14,24,.5); box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);
+    display:flex; align-items:center; font-size:13.5px; color:#f0f1f6; white-space:nowrap;
+  }
+  .ctrl.dim { color:rgba(255,255,255,.35); }
+  .ctrl .chev { position:absolute; right:11px; top:50%; transform:translateY(-50%); opacity:.85; }
+  .ctrl.small { height:32px; padding:0 26px 0 10px; font-size:13px; border-radius:6px; }
+  .ctrl.dd { cursor:pointer; }
+  .ctrl.dd:hover { background:rgba(22,26,38,.62); }
+  .ctrl input { all:unset; width:100%; font-size:13.5px; color:#f0f1f6; }
+  .ctrl input.dim { color:rgba(255,255,255,.35); }
+  .numrow { display:flex; align-items:center; gap:12px; }
+  .numrow .x { color:rgba(255,255,255,.5); font-size:14px; }
+
+  .check { display:flex; align-items:center; gap:11px; height:36px; font-size:13.5px; color:rgba(255,255,255,.94); cursor:pointer; }
+  .box { width:20px; height:20px; border-radius:5px; background:var(--acc); flex:none;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 1px rgba(255,255,255,.14); }
+  .box.off { background:rgba(12,14,24,.5); box-shadow:0 0 0 1px rgba(255,255,255,.22); }
+  .box svg { display:none; }
+  .check.on .box svg { display:block; }
+
+  .kvgrid { margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:6px 40px; }
+  .kv { display:flex; align-items:center; height:34px; }
+  .kv.dim { opacity:.55; }
+  .kv .ilabel { width:96px; flex:none; font-size:13px; color:rgba(255,255,255,.92); white-space:nowrap; }
+  .kv .ctrl.small { width:86px; flex:none; }
+  .kv .wide { width:112px !important; }
+
+  /* 滑块：WinUI 默认样式（细轨道 + 圆点） */
+  .kv .slider { flex:1; margin-right:4px; height:34px; display:flex; align-items:center; }
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px;
+    background:linear-gradient(to right, var(--acc) 100%, rgba(255,255,255,.22) 100%); outline:none; cursor:pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,.45); border:none; }
+
+  /* 下拉菜单 */
+  .menu { position:fixed; z-index:99; min-width:120px; padding:5px; border-radius:8px;
+    background:rgba(24,27,38,.96); backdrop-filter:blur(20px);
+    box-shadow:0 8px 28px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.09);
+    max-height:280px; overflow-y:auto; }
+  .menu .mi { padding:7px 12px; border-radius:6px; font-size:13px; color:#e8eaf2; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:16px; white-space:nowrap; }
+  .menu .mi:hover { background:rgba(255,255,255,.09); }
+  .menu .mi.sel { color:#b9baff; }
+  .menu .mi .mv { color:rgba(255,255,255,.4); font-size:11.5px; }
+
+  .bottombar {
+    position:absolute; left:0; right:0; bottom:0; height:64px; z-index:6;
+    background:rgba(10,11,18,.5); backdrop-filter:blur(24px);
+    display:flex; align-items:center; gap:18px; padding:0 26px;
+  }
+  .apply {
+    display:inline-flex; align-items:center; gap:9px; height:38px; padding:0 22px;
+    border-radius:19px; border:none; background:var(--acc); color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .apply:hover { filter:brightness(1.1); }
+  .hint { font-size:13px; color:rgba(255,255,255,.55); }
+  .toast { font-size:13px; color:#9ff0b3; opacity:0; transition:opacity .3s; }
+</style>
+</head>
+<body>
+
+<div class="note">
+  v5.1 <b>交互式</b>预览：下拉 / 勾选 / 滑条可操作，改完点「应用设置」（模拟，不写注册表）。
+  <b>画质提升决定「模式」行</b>：FSR 3 → FSR 模式、DLSS → DLSS 模式、TAAU → 无；<b>帧生成 = DLSS 时出现「DLSS 帧生成模式」</b>。
+  <b>GPU 检测</b>（WebGL 实测，WinUI 实装用 WMI Win32_VideoController）：<span id="gpuInfo">…</span>。
+  预设分辨率<b>始终可交互</b>；宽×高输入框仅勾选「自定义分辨率」后可编辑。
+  半透明行 = 注册表未写入的键（保存时创建）；数据 = 本机注册表实测。悬停控件可见键名与实测值。
+</div>
+
+<div class="window">
+  <!-- 标题栏 -->
+  <div class="titlebar">
+    <div class="avatar"></div>
+    <div class="wctrl">
+      <span><svg width="12" height="12" viewBox="0 0 12 12" stroke="#fff" stroke-width="1.4"><path d="M1 6h10"/></svg></span>
+      <span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="1.4"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5"/></svg></span>
+      <span><svg width="12" height="12" viewBox="0 0 12 12" stroke="#fff" stroke-width="1.4"><path d="m1.5 1.5 9 9M10.5 1.5l-9 9"/></svg></span>
+    </div>
+  </div>
+
+  <!-- 侧栏 -->
+  <div class="sidebar">
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V21h-6v-6h-6v6H3z"/></svg></div>
+    <div class="nav active"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 9h4M8 7v4M15 8.5h.01M17.5 11h.01"/><path d="M17.4 5H6.6a4.6 4.6 0 0 0-4.55 5.3l.9 5.5A3.4 3.4 0 0 0 6.3 18.5c1 0 1.9-.45 2.5-1.2l1-1.3h4.4l1 1.3a3.15 3.15 0 0 0 2.5 1.2 3.4 3.4 0 0 0 3.35-2.7l.9-5.5A4.6 4.6 0 0 0 17.4 5Z"/></svg></div>
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 3.5 3.5L16 13l4 4"/></svg></div>
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2.2"/><circle cx="9" cy="16" r="2.2"/></svg></div>
+    <div class="spacer"></div>
+    <div class="nav"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.14-1.4l2-1.55-2-3.46-2.35.95a7 7 0 0 0-2.42-1.4L13.7 2.6h-3.4l-.39 2.54a7 7 0 0 0-2.42 1.4l-2.35-.95-2 3.46 2 1.55A7 7 0 0 0 5 12c0 .47.05.94.14 1.4l-2 1.55 2 3.46 2.35-.95a7 7 0 0 0 2.42 1.4l.39 2.54h3.4l.39-2.54a7 7 0 0 0 2.42-1.4l2.35.95 2-3.46-2-1.55c.09-.46.14-.93.14-1.4Z"/></svg></div>
+  </div>
+
+  <!-- 内容 -->
+  <div class="content">
+    <div class="grid">
+      <!-- 左列：粗设置 -->
+      <div class="col" style="display:flex;flex-direction:column;gap:26px;">
+
+        <section class="section">
+          <h2>分辨率</h2>
+          <div class="row flow">
+            <div class="check on" id="chkFull" title="Screenmanager Fullscreen mode_h3630240806 = 1（无边框全屏）：0=独占 3=窗口；同步写 video_full_screen_h1998742411">
+              <span class="box"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 7.5 3 3 6-7"/></svg></span>
+              全屏
+            </div>
+            <div class="check" id="chkCustom" title="Screenmanager Resolution Use Native_h1405027254 = 1（本机：用原生分辨率）">
+              <span class="box"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 7.5 3 3 6-7"/></svg></span>
+              自定义分辨率
+            </div>
+            <div class="ctrl dd" id="ddPreset" style="width:180px" title="Screenmanager Resolution Width_h182942802 = 3840、Height_h2627697771 = 2160（本机实测）；始终可交互">
+              <span class="dd-value"></span>
+              <span class="chev"><svg width="11" height="7" viewBox="0 0 11 7" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span>
+            </div>
+            <div class="numrow">
+              <div class="ctrl dim" style="width:110px"><input id="resW" value="3840" title="同步写 Screenmanager Resolution Width + video_resolution_width_h583690364"></div>
+              <span class="x">×</span>
+              <div class="ctrl dim" style="width:110px"><input id="resH" value="2160" title="同步写 Screenmanager Resolution Height + video_resolution_height_h2517654917"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>画质设置</h2>
+          <div class="row">
+            <div class="field">
+              <label>画质预设</label>
+              <div class="ctrl dd" id="ddQuality" title="video_quality_main_h2648490162 = 4（本机实测：低）1=极高 2=高 3=中 4=低 5=极低">
+                <span class="dd-value"></span>
+                <span class="chev"><svg width="11" height="7" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span>
+              </div>
+            </div>
+            <div class="field">
+              <label>帧率上限</label>
+              <div class="ctrl dd" id="ddFps" title="video_frame_rate_8_h697513772 = 1000（本机实测：120 FPS）2000=60 FPS 3000=30 FPS">
+                <span class="dd-value"></span>
+                <span class="chev"><svg width="11" height="7" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>语言设置</h2>
+          <div class="row">
+            <div class="field">
+              <label>文字语言</label>
+              <div class="ctrl dd" id="ddTextLang" title="language_text_change_h1448997164 = 0（本机实测：简体中文）">
+                <span class="dd-value"></span>
+                <span class="chev"><svg width="11" height="7" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span>
+              </div>
+            </div>
+            <div class="field">
+              <label>语音语言</label>
+              <div class="ctrl dd" id="ddVoiceLang" title="language_audio_h2756590110 = 1（本机实测：中文）2=English 3=日本語 4=한국어">
+                <span class="dd-value"></span>
+                <span class="chev"><svg width="11" height="7" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- 右列：注册表枚举 -->
+      <div class="col" style="display:flex;flex-direction:column;gap:26px;">
+
+        <section class="section">
+          <h2>画质细项</h2>
+          <div class="kvgrid">
+            <div class="kv" title="video_quality_anisoLevel_1_h3121203451 = 3000（本机实测）1000=1× 2000=2× 3000=4× 4000=8×">
+              <span class="ilabel">各向异性采样</span>
+              <div class="ctrl small dd" id="ddAniso"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv" title="video_quality_scene_detail_1_h1593605959 = 3000（本机实测）：插件目录只认 1000/2000/4000，实测存在 3000 档，枚举待游戏内确认">
+              <span class="ilabel">场景细节</span>
+              <div class="ctrl small dd" id="ddScene"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv" title="video_quality_effect_1_h2848831456 = 3000（本机实测，插件未收录的新键，枚举待确认）">
+              <span class="ilabel">特效质量</span>
+              <div class="ctrl small dd" id="ddEffect"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv" title="video_quality_vsync_v2_2_h1194426206 = 0（本机实测，插件未收录的新键）">
+              <span class="ilabel">垂直同步</span>
+              <div class="ctrl small dd" id="ddVsync"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_shadowmap_1_h128234669：1000高 2000中 3000低 4000极低）">
+              <span class="ilabel">阴影</span>
+              <div class="ctrl small dd" id="ddShadow"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_texture_quality_1_h3061223496：2000中 3000低）">
+              <span class="ilabel">纹理</span>
+              <div class="ctrl small dd" id="ddTexture"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_volumetricfog_1_h4151020765：1000极高 2000中 5000关）">
+              <span class="ilabel">体积雾</span>
+              <div class="ctrl small dd" id="ddFog"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_volumetriccloud_1_h4135137794：1000极高 3000中 5000极低）">
+              <span class="ilabel">体积云</span>
+              <div class="ctrl small dd" id="ddCloud"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_ao_1_h2648627865：1000高 3000低 4000极低）">
+              <span class="ilabel">环境光遮蔽</span>
+              <div class="ctrl small dd" id="ddAo"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_environment_renderfeature_1_h2552402819：1000高 3000低）">
+              <span class="ilabel">环境细节</span>
+              <div class="ctrl small dd" id="ddEnv"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_grass_sparsity_1_h587916507：1000高 2000低）">
+              <span class="ilabel">植被密度</span>
+              <div class="ctrl small dd" id="ddGrass"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_chromatic_aberration_1_h1000454999：0关 1000开）">
+              <span class="ilabel">色差</span>
+              <div class="ctrl small dd" id="ddChromatic"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_screenspacereflection_1_h1017734168：1000极高 4000低 5000关）">
+              <span class="ilabel">屏幕空间反射</span>
+              <div class="ctrl small dd" id="ddSsr"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" title="注册表暂无此键：保存时创建（video_quality_contactshadow_1_h2952688721：0关 1000开）">
+              <span class="ilabel">接触阴影</span>
+              <div class="ctrl small dd" id="ddContact"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>超分辨率与帧生成</h2>
+          <div class="kvgrid">
+            <div class="kv" title="video_quality_upscaler_2_h1962157691 = 3000（本机实测）1000=DLSS 2000=TAAU 3000=AMD FSR 3；切换后「模式」行随之替换">
+              <span class="ilabel">画质提升</span>
+              <div class="ctrl small dd wide" id="ddUpscaler"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv" id="rowMode" title="video_quality_fsr3_mode_1_h3089342015 = 3000（本机实测）1000=超高性能 2000=高性能 3000=平衡 4000=高质量 5000=原生 AA">
+              <span class="ilabel" id="modeLabel">FSR 模式</span>
+              <div class="ctrl small dd" id="ddMode"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv" title="video_quality_sharpness_1_h923865732 = 1000（本机实测，UI 0–1 步进 0.1）">
+              <span class="ilabel">锐化程度</span>
+              <div class="slider"><input type="range" id="sharp" min="0" max="1" step="0.1" value="1"></div>
+            </div>
+            <div class="kv" title="video_quality_framegen_1_h428217478 = 1000（本机实测）2000=DLSS 3000=FSR 3；=DLSS 时出现 DLSS 帧生成模式">
+              <span class="ilabel">帧生成</span>
+              <div class="ctrl small dd" id="ddFramegen"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv" id="rowDlssg" style="display:none;" title="video_quality_dlssg_mode_1_h1229296740：1000=自动 2000=2× 3000=3× 4000=4×（帧生成 = DLSS 时显示）">
+              <span class="ilabel">DLSS 帧生成模式</span>
+              <div class="ctrl small dd" id="ddDlssg" style="width:70px;"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+            <div class="kv dim" id="rowReflex" title="注册表暂无此键：保存时创建（video_quality_reflex_1_h358679639：1000关 2000开 3000开+增强）——NVIDIA 专属，非 N 卡整行隐藏">
+              <span class="ilabel">NVIDIA Reflex</span>
+              <div class="ctrl small dd" id="ddReflex"><span class="dd-value"></span><span class="chev" style="right:8px;"><svg width="10" height="6" viewBox="0 0 11 7" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><path d="m1.5 1.5 4 4 4-4"/></svg></span></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部应用栏 -->
+  <div class="bottombar">
+    <button class="apply" id="btnApply">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 7.5 3 3 6-7"/></svg>
+      应用设置
+    </button>
+    <span class="hint">游戏运行时应用的设置不会生效</span>
+    <span class="toast" id="toast"></span>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ===== 下拉菜单 ===== */
+let menuEl = null;
+function closeMenu(){ if(menuEl){ menuEl.remove(); menuEl = null; } }
+document.addEventListener("click", closeMenu);
+
+function openMenu(anchor, items, cur, onpick){
+  closeMenu();
+  menuEl = document.createElement("div");
+  menuEl.className = "menu";
+  for(const it of items){
+    const mi = document.createElement("div");
+    mi.className = "mi" + (String(it.v) === String(cur) ? " sel" : "");
+    mi.innerHTML = `<span>${it.label}</span>` + (it.raw != null ? `<span class="mv">${it.raw}</span>` : "");
+    mi.addEventListener("click", e => { e.stopPropagation(); onpick(it.v); closeMenu(); });
+    menuEl.appendChild(mi);
+  }
+  const r = anchor.getBoundingClientRect();
+  document.body.appendChild(menuEl);
+  const mh = menuEl.offsetHeight;
+  let top = r.bottom + 4;
+  if(top + mh > innerHeight - 8) top = r.top - mh - 4;
+  menuEl.style.left = Math.min(r.left, innerWidth - menuEl.offsetWidth - 8) + "px";
+  menuEl.style.top = top + "px";
+}
+
+function undim(el){
+  const kv = el.closest(".kv");
+  if(kv) kv.classList.remove("dim");
+}
+
+function makeDD(el, items, cur, onpick){
+  const val = el.querySelector(".dd-value");
+  let _items = items;
+  function render(){
+    const it = _items.find(i => String(i.v) === String(el.dataset.v));
+    val.textContent = it ? it.label : "";
+  }
+  el.dataset.v = cur; render();
+  el.addEventListener("click", e => {
+    e.stopPropagation();
+    if(el.classList.contains("dim")) return;
+    undim(el);
+    openMenu(el, _items, el.dataset.v, v => { el.dataset.v = v; render(); if(onpick) onpick(v); });
+  });
+  return {
+    set(v){ el.dataset.v = v; render(); },
+    get(){ return el.dataset.v; },
+    setItems(list, cur){ _items = list; if(cur != null) el.dataset.v = cur; render(); }
+  };
+}
+
+/* ===== GPU 检测（WebGL；WinUI 实装用 WMI Win32_VideoController 判断 NVIDIA） ===== */
+function gpuVendor(){
+  try{
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl2") || c.getContext("webgl");
+    if(!gl) return "";
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    const name = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)).toLowerCase();
+    if(/nvidia|geforce|rtx|gtx/.test(name)) return "nvidia";
+    if(/amd|radeon/.test(name)) return "amd";
+    if(/intel|arc|iris|uhd/.test(name)) return "intel";
+    return "";
+  }catch(e){ return ""; }
+}
+const GPU_NAME = (() => {
+  try{
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl2") || c.getContext("webgl");
+    if(!gl) return "未知";
+    const ext = gl.getExtension("WEBGL_debug_renderer_info");
+    return ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : "未知";
+  }catch(e){ return "未知"; }
+})();
+const VENDOR = gpuVendor();
+const NVIDIA_ONLY = VENDOR === "nvidia" || VENDOR === "";   // 识别不出时显示全部，宁多勿缺
+$("gpuInfo").textContent = `${GPU_NAME}（${VENDOR || "未识别"}）→ ` +
+  (NVIDIA_ONLY ? "NVIDIA 专属项（DLSS / Reflex）已显示" : "非 N 卡：DLSS / Reflex 已隐藏");
+
+/* ===== 数据（本机注册表实测值起步） ===== */
+const RES_PRESETS = ["3840 × 2160","2560 × 1440","1920 × 1080","1600 × 900","1280 × 720"];
+const ddPreset  = makeDD($("ddPreset"),
+  RES_PRESETS.map((s,i)=>({v:i,label:s})), 0,
+  v => { const [w,h] = RES_PRESETS[v].split(" × "); $("resW").value = w; $("resH").value = h; });
+
+const ddQuality = makeDD($("ddQuality"),
+  [{v:1,label:"极高",raw:"1"},{v:2,label:"高",raw:"2"},{v:3,label:"中",raw:"3"},{v:4,label:"低",raw:"4"},{v:5,label:"极低",raw:"5"}], 4);
+const ddFps = makeDD($("ddFps"),
+  [{v:1000,label:"120 FPS",raw:"1000"},{v:2000,label:"60 FPS",raw:"2000"},{v:3000,label:"30 FPS",raw:"3000"}], 1000);
+const ddTextLang = makeDD($("ddTextLang"),
+  [{v:0,label:"简体中文"},{v:4,label:"繁體中文"},{v:8,label:"Deutsch"},{v:12,label:"English"},{v:16,label:"Español"},{v:20,label:"Français"},{v:24,label:"Bahasa Indonesia"},{v:28,label:"Italiano"},{v:32,label:"日本語"},{v:36,label:"한국어"},{v:40,label:"Português (Brasil)"},{v:44,label:"Русский"},{v:48,label:"ภาษาไทย"},{v:52,label:"Tiếng Việt"}], 0);
+const ddVoiceLang = makeDD($("ddVoiceLang"),
+  [{v:1,label:"中文"},{v:2,label:"English"},{v:3,label:"日本語"},{v:4,label:"한국어"}], 1);
+
+const ddAniso = makeDD($("ddAniso"),
+  [{v:1000,label:"1x",raw:"1000"},{v:2000,label:"2x",raw:"2000"},{v:3000,label:"4x",raw:"3000"},{v:4000,label:"8x",raw:"4000"}], 3000);
+const ddScene = makeDD($("ddScene"),
+  [{v:1000,label:"极高",raw:"1000"},{v:2000,label:"高",raw:"2000"},{v:3000,label:"中",raw:"3000"},{v:4000,label:"低",raw:"4000"}], 3000);
+const ddEffect = makeDD($("ddEffect"),
+  [{v:1000,label:"极高",raw:"1000"},{v:2000,label:"高",raw:"2000"},{v:3000,label:"中",raw:"3000"},{v:4000,label:"低",raw:"4000"}], 3000);
+const ddVsync = makeDD($("ddVsync"), [{v:0,label:"关",raw:"0"},{v:1,label:"开",raw:"1"}], 0);
+const ddShadow = makeDD($("ddShadow"),
+  [{v:1000,label:"高"},{v:2000,label:"中"},{v:3000,label:"低"},{v:4000,label:"极低"}], 1000);
+const ddTexture = makeDD($("ddTexture"), [{v:2000,label:"中"},{v:3000,label:"低"}], 2000);
+const ddFog = makeDD($("ddFog"), [{v:1000,label:"极高"},{v:2000,label:"中"},{v:5000,label:"关闭"}], 1000);
+const ddCloud = makeDD($("ddCloud"), [{v:1000,label:"极高"},{v:3000,label:"中"},{v:5000,label:"极低"}], 1000);
+const ddAo = makeDD($("ddAo"), [{v:1000,label:"高"},{v:3000,label:"低"},{v:4000,label:"极低"}], 1000);
+const ddEnv = makeDD($("ddEnv"), [{v:1000,label:"高"},{v:3000,label:"低"}], 1000);
+const ddGrass = makeDD($("ddGrass"), [{v:1000,label:"高"},{v:2000,label:"低"}], 1000);
+const ddChromatic = makeDD($("ddChromatic"), [{v:1000,label:"开"},{v:0,label:"关"}], 1000);
+const ddSsr = makeDD($("ddSsr"), [{v:1000,label:"极高"},{v:4000,label:"低"},{v:5000,label:"关闭"}], 1000);
+const ddContact = makeDD($("ddContact"), [{v:1000,label:"开"},{v:0,label:"关"}], 1000);
+
+/* 超分辨率与帧生成 */
+const FSR_MODES  = [{v:1000,label:"超高性能"},{v:2000,label:"高性能"},{v:3000,label:"平衡"},{v:4000,label:"高质量"},{v:5000,label:"原生 AA"}];
+const DLSS_MODES = [{v:1000,label:"超级性能"},{v:2000,label:"性能"},{v:3000,label:"平衡"},{v:4000,label:"质量"},{v:5000,label:"DLAA"}];
+const ddUpscaler = makeDD($("ddUpscaler"),
+  [{v:1000,label:"DLSS",nv:1},{v:2000,label:"TAAU"},{v:3000,label:"AMD FSR 3"}].filter(i => !i.nv || NVIDIA_ONLY),
+  3000, onUpscaler);
+const ddMode = makeDD($("ddMode"), FSR_MODES, 3000);
+
+function onUpscaler(v){
+  const row = $("rowMode"), label = $("modeLabel");
+  if(v === 1000){                       // DLSS → DLSS 模式
+    row.style.display = "flex";
+    label.textContent = "DLSS 模式";
+    ddMode.setItems(DLSS_MODES, 4000);
+    row.title = "video_quality_dlss_mode_1_h833809667（画质提升 = DLSS 时使用）1000=超级性能 2000=性能 3000=平衡 4000=质量 5000=DLAA";
+  } else if(v === 3000){                // AMD FSR 3 → FSR 模式
+    row.style.display = "flex";
+    label.textContent = "FSR 模式";
+    ddMode.setItems(FSR_MODES, 3000);
+    row.title = "video_quality_fsr3_mode_1_h3089342015 = 3000（本机实测）1000=超高性能 2000=高性能 3000=平衡 4000=高质量 5000=原生 AA";
+  } else {                              // TAAU → 无模式行
+    row.style.display = "none";
+  }
+}
+
+const ddFramegen = makeDD($("ddFramegen"),
+  [{v:1000,label:"关闭"},{v:2000,label:"DLSS",nv:1},{v:3000,label:"FSR 3"}].filter(i => !i.nv || NVIDIA_ONLY),
+  1000,
+  v => { $("rowDlssg").style.display = (v === 2000) ? "flex" : "none"; });
+const ddDlssg = makeDD($("ddDlssg"),
+  [{v:1000,label:"自动"},{v:2000,label:"2×"},{v:3000,label:"3×"},{v:4000,label:"4×"}], 1000);
+const ddReflex = makeDD($("ddReflex"),
+  [{v:1000,label:"关闭"},{v:2000,label:"开启"},{v:3000,label:"开启 + 增强"}], 1000);
+if(!NVIDIA_ONLY) $("rowReflex").style.display = "none";
+
+/* ===== 勾选 ===== */
+function bindCheck(id, onchg){
+  const el = $(id);
+  el.addEventListener("click", () => {
+    el.classList.toggle("on");
+    undim(el);
+    if(onchg) onchg(el.classList.contains("on"));
+  });
+}
+bindCheck("chkFull");
+/* 宽×高输入框仅勾选「自定义分辨率」后可编辑；预设下拉始终可交互 */
+function setResEnabled(on){
+  for(const id of ["resW","resH"]){
+    const input = $(id);
+    input.parentElement.classList.toggle("dim", !on);
+    input.classList.toggle("dim", !on);
+    input.style.pointerEvents = on ? "auto" : "none";
+  }
+}
+bindCheck("chkCustom", setResEnabled);
+setResEnabled(false);   // 初始：未勾选自定义分辨率 → 宽高禁用、预设可交互
+
+/* ===== 滑块 ===== */
+const sharp = $("sharp");
+function paintSharp(){
+  const p = (sharp.value - sharp.min) / (sharp.max - sharp.min) * 100;
+  sharp.style.background = `linear-gradient(to right, var(--acc) ${p}%, rgba(255,255,255,.22) ${p}%)`;
+}
+sharp.addEventListener("input", () => { paintSharp(); undim(sharp); });
+paintSharp();
+
+/* ===== 应用 ===== */
+$("btnApply").addEventListener("click", () => {
+  const t = $("toast");
+  t.textContent = "已保存（预览模拟，未写注册表）";
+  t.style.opacity = 1;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.style.opacity = 0, 2200);
+});
+</script>
+</body>
+</html>

@@ -1,21 +1,436 @@
 <!doctype html>
-<html lang="zh-Hans">
+<html lang="zh-CN">
 <head>
-  <meta charset="utf-8" />
-  <title>社区</title>
-  <style>
-    html, body { height: 100%; margin: 0; background: transparent; color: #e8e8e8;
-                 font: 14px/1.7 "Segoe UI", "Microsoft YaHei", sans-serif; }
-    .wrap { padding: 28px 32px; }
-    h1 { font-size: 18px; margin: 0 0 8px; }
-    p { margin: 0 0 6px; color: #9aa0a6; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>森空岛 · 数据终端</title>
+<style>
+  :root {
+    --accent: #E6D800;
+    --bg: #14161a;
+    --side: rgba(20, 22, 28, .82);
+    --panel: rgba(255, 255, 255, .045);
+    --panel-2: rgba(255, 255, 255, .075);
+    --line: rgba(255, 255, 255, .10);
+    --text: #f2f3f5;
+    --muted: #9a9ea6;
+    --good: #7bd88f;
+    --warn: #e8b45c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f8;
+      --side: rgba(238, 240, 244, .92);
+      --panel: rgba(255, 255, 255, .82);
+      --panel-2: rgba(255, 255, 255, .98);
+      --line: rgba(20, 22, 28, .10);
+      --text: #1b1c1e;
+      --muted: #666b74;
+      --good: #1e8a4c;
+      --warn: #a9711c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Microsoft YaHei UI", "Microsoft YaHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased; font-size: 13px;
+  }
+  .app { display: flex; min-height: 100vh; }
+
+  /* ---------- 左侧二级导航（对齐库街区侧栏） ---------- */
+  .side {
+    width: 196px; flex: none; background: var(--side);
+    border-right: 1px solid var(--line);
+    padding: 18px 10px 14px; display: flex; flex-direction: column;
+    backdrop-filter: blur(14px);
+  }
+  .acct { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
+  .acct img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--panel-2); flex: none; }
+  .acct .name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .acct .lv { color: var(--muted); font-size: 11px; margin-top: 3px; }
+  .nav { display: flex; flex-direction: column; gap: 2px; }
+  .nav-item {
+    position: relative; display: flex; align-items: center; gap: 11px;
+    width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--text); font: inherit; font-size: 13px;
+    text-align: left; cursor: pointer; transition: background .14s ease;
+  }
+  .nav-item:hover { background: var(--panel); }
+  .nav-item.active { background: var(--panel-2); font-weight: 600; }
+  .nav-item.active::before {
+    content: ''; position: absolute; left: 0; top: 9px; bottom: 9px;
+    width: 3px; border-radius: 2px; background: var(--accent);
+  }
+  .nav-item img { width: 21px; height: 21px; object-fit: contain; flex: none; opacity: .92; }
+  .nav-sep { height: 1px; background: var(--line); margin: 11px 10px; }
+  .side-foot { margin-top: auto; padding: 12px 10px 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+
+  /* ---------- 右侧内容 ---------- */
+  .main { flex: 1; min-width: 0; padding: 26px 30px 46px; overflow: auto; }
+  .toolbar { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .toolbar .title { font-size: 21px; font-weight: 700; margin: 0; letter-spacing: .3px; }
+  .toolbar .sub { color: var(--muted); font-size: 12px; margin: 5px 0 0; line-height: 1.6; }
+  .toolbar .ops { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  button.btn, a.btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px;
+    border: 1px solid var(--line); border-radius: 7px; background: var(--panel);
+    color: var(--text); font: inherit; font-size: 12px; text-decoration: none;
+    cursor: pointer; white-space: nowrap; transition: border-color .14s ease, background .14s ease;
+  }
+  button.btn:hover, a.btn:hover { border-color: var(--accent); background: var(--panel-2); }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  button.btn.primary { border-color: var(--accent); color: var(--accent); }
+  .status { font-size: 11px; color: var(--muted); }
+  .status.ok { color: var(--good); }
+  .status.err { color: var(--warn); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 14px 16px;
+  }
+  .card .k { color: var(--muted); font-size: 11px; }
+  .card .v { font-size: 21px; font-weight: 700; margin: 7px 0 3px; }
+  .card .h { color: var(--muted); font-size: 10px; line-height: 1.5; }
+  .card .v.good { color: var(--good); }
+  .card .v.muted { color: var(--muted); }
+
+  .blocks { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .block { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 15px 17px; }
+  .block h3 { font-size: 13px; font-weight: 600; margin: 0 0 12px; }
+  .row { display: flex; justify-content: space-between; gap: 14px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 12px; }
+  .row:first-of-type { border-top: 0; }
+  .row .l { color: var(--muted); flex: none; max-width: 46%; }
+  .row .r { text-align: right; word-break: break-word; }
+  .row .r.good { color: var(--good); }
+  .row .r.muted { color: var(--muted); }
+  .bar { margin: 10px 0 2px; }
+  .bar .lab { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
+  .bar .track { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .bar .fill { height: 100%; background: var(--accent); border-radius: 3px; }
+
+  .cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 7px; margin: 4px 0 20px; }
+  .day {
+    border: 1px solid var(--line); border-radius: 7px; background: var(--panel);
+    padding: 9px 7px; text-align: center; font-size: 10px; color: var(--muted);
+  }
+  .day .n { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .day .a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .day.done { border-color: rgba(123, 216, 143, .55); }
+  .day.done .n { color: var(--good); }
+  .day.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .note { color: var(--muted); font-size: 11px; line-height: 1.7; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+  .empty { padding: 60px 24px; text-align: center; color: var(--muted); line-height: 1.9; }
+  .empty h3 { color: var(--text); font-size: 16px; margin: 0 0 8px; }
+
+  /* ---------- 凭证设置 ---------- */
+  .form { max-width: 560px; }
+  .form label { display: block; font-size: 12px; margin: 0 0 7px; }
+  .form input {
+    width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--line);
+    border-radius: 7px; background: var(--panel); color: var(--text); font: inherit; font-size: 12px;
+  }
+  .form .ops { display: flex; gap: 9px; margin-top: 12px; }
+  .help { margin-top: 22px; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 12px; line-height: 1.9; }
+  .help b { color: var(--text); }
+  .help code { background: var(--panel-2); padding: 1px 5px; border-radius: 3px; font-size: 11px; word-break: break-all; }
+  .h5list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+  a.h5card { display: flex; align-items: center; gap: 12px; padding: 15px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; color: var(--text); text-decoration: none; }
+  a.h5card:hover { border-color: var(--accent); }
+  a.h5card img { width: 34px; height: 34px; object-fit: contain; }
+  a.h5card .t { font-size: 13px; font-weight: 600; }
+  a.h5card .d { color: var(--muted); font-size: 11px; margin-top: 3px; }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>社区面板（占位）</h1>
-    <p>这个页面属于游戏包，不属于 Arietta。作者在这里写自己的登录流程、API 调用和界面。</p>
-    <p>宿主只提供 WebView 容器、登录态存储和脚本桥。</p>
+<div class="app">
+  <aside class="side">
+    <div class="acct">
+      <img id="acctAvatar" src="../assets/toolbox/游戏数据.png" alt="" />
+      <div>
+        <div class="name" id="acctName">森空岛</div>
+        <div class="lv" id="acctLv">未连接</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">数据取自森空岛接口<br />凭证保存在 Arietta 本地</div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <div>
+        <h1 class="title" id="pageTitle">每日签到</h1>
+        <p class="sub" id="pageSub">正在读取本地缓存…</p>
+      </div>
+      <div class="ops">
+        <span class="status" id="status"></span>
+        <a class="btn" id="btnH5" href="#" target="_blank" rel="noopener">官方 H5</a>
+        <button class="btn primary" id="btnRefresh">刷新数据</button>
+      </div>
+    </div>
+    <div id="content"></div>
+  </main>
+</div>
+
+<script>
+/* 宿主注入 window.Arietta = { call(method, params) -> Promise, state: {get,set} }。
+   所有数据都经 provider 的 skland-overview 方法从森空岛接口拉取；本页只渲染，
+   不内置任何账号数据。凭证存宿主 state（落在宿主数据目录，不进包、不影响签名）。 */
+const bridge = window.Arietta || null;
+const ICON_SIGN = '../assets/toolbox/每日签到.png';
+const ICON_DATA = '../assets/toolbox/游戏数据.png';
+const H5_OVERVIEW = 'https://game.skland.com/endfield/game-data?header=0';
+const H5_HOME = 'https://www.skland.com/';
+const NAV = [
+  { id: 'sign',     label: '每日签到', icon: ICON_SIGN },
+  { id: 'crisis',   label: '危机合约', icon: ICON_DATA },
+  { id: 'monument', label: '影拓丰碑', icon: ICON_DATA },
+  { id: 'echoes',   label: '战争回响', icon: ICON_DATA },
+  { sep: true },
+  { id: 'h5',       label: '官方 H5',  icon: ICON_DATA },
+  { sep: true },
+  { id: 'settings', label: '凭证设置', icon: ICON_DATA },
+];
+const MODULE_H5 = {
+  sign: 'https://game.skland.com/endfield/sign-in?header=0',
+  crisis: 'https://game.skland.com/endfield/game-data/crisis-contract?header=0',
+  monument: 'https://game.skland.com/endfield/game-data/umbral-monument?header=0',
+  echoes: 'https://game.skland.com/endfield/game-data/war-echoes?header=0',
+};
+
+let model = null, active = 'sign', token = '', busy = false;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hasCall = () => !!(bridge && typeof bridge.call === 'function');
+const call = (method, params) => {
+  if (!hasCall()) return Promise.reject(new Error('离线预览：请在 Arietta 内打开本页以同步数据'));
+  return bridge.call(method, params || {});
+};
+async function stateGet(key) {
+  if (bridge && bridge.state && typeof bridge.state.get === 'function') {
+    try { return await bridge.state.get(key); } catch (e) { /* 回落 localStorage */ }
+  }
+  try { return JSON.parse(localStorage.getItem('ef.' + key) || 'null'); } catch (e) { return null; }
+}
+async function stateSet(key, value) {
+  if (bridge && bridge.state && typeof bridge.state.set === 'function') {
+    try { await bridge.state.set(key, value); return; } catch (e) { /* 回落 localStorage */ }
+  }
+  try { localStorage.setItem('ef.' + key, JSON.stringify(value)); } catch (e) { /* 忽略配额 */ }
+}
+function setStatus(text, kind) {
+  const el = $('status');
+  el.textContent = text || '';
+  el.className = 'status' + (kind ? ' ' + kind : '');
+}
+
+function renderNav() {
+  $('nav').innerHTML = NAV.map((n) => n.sep
+    ? '<div class="nav-sep"></div>'
+    : `<button class="nav-item${n.id === active ? ' active' : ''}" data-id="${esc(n.id)}">
+         <img src="${esc(n.icon)}" alt="" /><span>${esc(n.label)}</span></button>`).join('');
+  $('nav').querySelectorAll('.nav-item').forEach((b) => {
+    b.addEventListener('click', () => { active = b.dataset.id; renderNav(); render(); });
+  });
+}
+
+function renderAccount() {
+  const a = model && model.account;
+  if (!a) {
+    $('acctAvatar').src = ICON_DATA;
+    $('acctName').textContent = '森空岛';
+    $('acctLv').textContent = token ? '待同步' : '未连接';
+    return;
+  }
+  if (a.avatar) {
+    const img = $('acctAvatar');
+    img.onerror = () => { img.onerror = null; img.src = ICON_DATA; };
+    img.src = a.avatar;
+  }
+  $('acctName').textContent = a.name || '森空岛';
+  const bits = [];
+  if (a.level) bits.push('Lv ' + a.level);
+  if (a.worldLevel) bits.push('世界 ' + a.worldLevel);
+  if (a.serverName) bits.push(a.serverName);
+  $('acctLv').textContent = bits.join(' · ') || '已连接';
+}
+
+function renderCards(cards) {
+  if (!cards || !cards.length) return '';
+  return '<div class="cards">' + cards.map((c) => `
+    <div class="card"><div class="k">${esc(c.label)}</div>
+      <div class="v ${esc(c.tone || '')}">${esc(c.value)}</div>
+      <div class="h">${esc(c.hint || '')}</div></div>`).join('') + '</div>';
+}
+
+function renderBlocks(blocks) {
+  if (!blocks || !blocks.length) return '';
+  return '<div class="blocks">' + blocks.map((b) => `
+    <div class="block"><h3>${esc(b.title || '')}</h3>
+      ${(b.rows || []).map((r) => `<div class="row"><span class="l">${esc(r.label)}</span>
+        <span class="r ${esc(r.tone || '')}">${esc(r.value)}</span></div>`).join('')}
+      ${(b.bars || []).map((p) => {
+        const total = Number(p.total) || 0, value = Number(p.value) || 0;
+        const pct = total > 0 ? Math.min(100, Math.round(value / total * 100)) : 0;
+        return `<div class="bar"><div class="lab"><span>${esc(p.label)}</span><span>${value} / ${total}</span></div>
+          <div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+      }).join('')}
+    </div>`).join('') + '</div>';
+}
+
+function renderCalendar(days) {
+  if (!days || !days.length) return '';
+  return '<div class="cal">' + days.map((d) => `
+    <div class="day${d.done ? ' done' : ''}${d.available ? ' today' : ''}" title="${esc(d.award)}">
+      <div class="n">${esc(d.day)}</div>
+      <div class="a">${d.done ? '已签' : (d.available ? '可领' : esc(d.award || '—'))}</div>
+    </div>`).join('') + '</div>';
+}
+
+function renderModule(m) {
+  if (!m) return '<div class="empty"><h3>暂无数据</h3>点击「刷新数据」从森空岛接口拉取。</div>';
+  const a = model.account || {};
+  $('btnH5').href = m.h5 || (model.h5 && model.h5.overview) || H5_OVERVIEW;
+  $('btnH5').style.display = '';
+  return `<div class="cards">
+      <div class="card"><div class="k">角色</div><div class="v">${esc(a.name || '—')}</div>
+        <div class="h">Lv ${esc(a.level)} · 世界 ${esc(a.worldLevel)} · UID ${esc(a.roleId)}</div></div>
+      <div class="card"><div class="k">干员 / 武器 / 档案</div>
+        <div class="v">${esc(a.charNum)} / ${esc(a.weaponNum)} / ${esc(a.docNum)}</div>
+        <div class="h">角色卡片 base 字段</div></div>
+      <div class="card"><div class="k">最近登录</div><div class="v" style="font-size:14px">${esc(a.lastLogin || '—')}</div>
+        <div class="h">数据快照 ${esc(a.saveTime || '—')}</div></div>
+    </div>` + renderCards(m.cards) + renderCalendar(m.calendar) + renderBlocks(m.blocks)
+    + `<div class="note">${esc(m.note || '')}<br />数据来源：森空岛 API 直连，不经过官方网页，也不需要 App。</div>`;
+}
+
+function renderH5() {
+  $('btnH5').style.display = 'none';
+  const items = [
+    ['游戏数据总览', (model && model.h5 && model.h5.overview) || H5_OVERVIEW, '官方 H5 数据终端首页'],
+    ['每日签到', MODULE_H5.sign, '签到与奖励领取'],
+    ['危机合约', MODULE_H5.crisis, '当期合约与指标'],
+    ['影拓丰碑', MODULE_H5.monument, '关卡与苦难进度'],
+    ['战争回响', MODULE_H5.echoes, '赛季与轮换'],
+    ['森空岛主站', (model && model.h5 && model.h5.home) || H5_HOME, '官方资讯与社区'],
+  ];
+  return '<div class="h5list">' + items.map(([t, u, d]) => `
+    <a class="h5card" href="${esc(u)}" target="_blank" rel="noopener">
+      <img src="${esc(t === '每日签到' ? ICON_SIGN : ICON_DATA)}" alt="" />
+      <div><div class="t">${esc(t)}</div><div class="d">${esc(d)}</div></div></a>`).join('') + '</div>'
+    + '<div class="note">H5 链接在系统浏览器打开。上面的数据面板已经直接读接口，不必先打开网页。</div>';
+}
+
+function renderSettings() {
+  $('btnH5').style.display = 'none';
+  return `<div class="form">
+    <label for="token">鹰角账号 token（content 字段）</label>
+    <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴 token" value="${esc(token)}" />
+    <div class="ops">
+      <button class="btn primary" id="btnSave">保存并刷新</button>
+      <button class="btn" id="btnClear">清除凭证</button>
+    </div>
   </div>
+  <div class="help">
+    <b>怎么拿 token</b><br />
+    1. 在 PC 浏览器登录 <code>user.hypergryph.com</code>（不用手机、不用 App）。<br />
+    2. 打开 <code>web-api.hypergryph.com/account/info/hg</code>，复制返回 JSON 里的 <code>content</code> 整段。<br />
+    3. 粘贴到上面保存。凭证只存在 Arietta 的本地数据目录，不会写进游戏包，也不会出现在日志里。<br />
+    <br />
+    <b>这个页面读什么</b><br />
+    <code>grant → cred → sign</code> 之后直连 <code>zonai.skland.com</code>：绑定角色、角色卡片
+    <code>card/detail</code>、战争回响 <code>card/war-echoes</code>、签到日历
+    <code>/web/v1/game/endfield/attendance</code>。全部只读，签到只显示状态，不代为领取。<br />
+    <br />
+    <b>失效了怎么办</b><br />
+    重新粘贴一次即可。不要在网页端点「退出登录 / 清理会话」，那会清掉其它端的登录态。
+  </div>`;
+}
+
+function render() {
+  const titles = { sign: '每日签到', crisis: '危机合约', monument: '影拓丰碑',
+                   echoes: '战争回响', h5: '官方 H5', settings: '凭证设置' };
+  $('pageTitle').textContent = titles[active] || '森空岛';
+  renderAccount();
+  if (model) {
+    const a = model.account || {};
+    $('pageSub').innerHTML = `森空岛接口直连 · ${esc(a.name || '')} · 更新于 ${esc(model.updatedAt || '—')}`
+      + (model.source === 'live' ? '' : '（本地缓存）');
+  } else {
+    $('pageSub').textContent = token ? '尚未拉取数据，点击「刷新数据」开始' : '先在「凭证设置」填入鹰角账号 token';
+  }
+
+  if (active === 'settings') {
+    const html = renderSettings();
+    $('content').innerHTML = html;
+    $('btnSave').addEventListener('click', async () => {
+      token = $('token').value.trim();
+      await stateSet('skland.token', token);
+      if (!token) { setStatus('凭证已清除', 'ok'); model = null; render(); return; }
+      await refresh();
+      if (model) { active = 'sign'; renderNav(); render(); }
+    });
+    $('btnClear').addEventListener('click', async () => {
+      token = ''; model = null;
+      await stateSet('skland.token', '');
+      await stateSet('skland.overview', null);
+      $('token').value = '';
+      setStatus('凭证与缓存已清除', 'ok');
+      render();
+    });
+  } else if (active === 'h5') {
+    $('content').innerHTML = renderH5();
+  } else {
+    if (!model) {
+      $('btnH5').style.display = 'none';
+      $('content').innerHTML = `<div class="empty"><h3>还没有数据</h3>
+        ${token ? '点击右上角「刷新数据」从森空岛接口拉取。' : '请先到「凭证设置」填入鹰角账号 token。<br />不需要 App，也不需要抓包。'}</div>`;
+    } else {
+      $('content').innerHTML = renderModule(model.modules[active]);
+    }
+  }
+}
+
+async function refresh() {
+  if (busy) return;
+  if (!hasCall()) { setStatus('离线预览：请在 Arietta 内打开本页', 'err'); return; }
+  if (!token) { active = 'settings'; renderNav(); render(); setStatus('请先填入凭证', 'err'); return; }
+  busy = true;
+  $('btnRefresh').disabled = true;
+  $('btnRefresh').textContent = '同步中…';
+  setStatus('正在直连森空岛接口…');
+  try {
+    const result = await call('skland-overview', { token });
+    if (!result || !result.modules) throw new Error('provider 没有返回模块数据');
+    model = result;
+    await stateSet('skland.overview', model);
+    render();
+    setStatus('同步完成 · ' + (result.updatedAt || ''), 'ok');
+  } catch (e) {
+    setStatus('同步失败：' + (e && e.message ? e.message : String(e)), 'err');
+  } finally {
+    busy = false;
+    $('btnRefresh').disabled = false;
+    $('btnRefresh').textContent = '刷新数据';
+  }
+}
+
+async function boot() {
+  token = (await stateGet('skland.token')) || '';
+  const cached = await stateGet('skland.overview');
+  if (cached && cached.modules) { model = cached; model.source = 'cached'; }
+  if (!token && !hasCall()) { active = 'settings'; }
+  else if (!token) { active = 'settings'; }
+  renderNav();
+  render();
+  if (!hasCall()) { setStatus('离线预览：仅显示缓存，无法同步', 'err'); return; }
+  if (token) await refresh();   // 打开面板就拉一次真实数据，缓存只作首屏占位
+}
+
+$('btnRefresh').addEventListener('click', refresh);
+boot();
+</script>
 </body>
 </html>

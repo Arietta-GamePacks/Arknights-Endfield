@@ -14,10 +14,35 @@
   },
 
   "vendor": "PaperKito",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "order": 100,
   "icon": "icon.png",
+  // 单服回落值：不认识 servers 的旧宿主仍把它当成国服单服包。
   "serverCode": "CN",
+
+  // 服务器变体：宿主把一份 manifest 展开成多个可切换条目，共用封面 / provider / 设置页，
+  // 但各自保存 exe 路径（PackExePath_<变体id>）与切换器选中状态。
+  // 顺序对齐鸣潮：国际服 → 国服 → B服；CN 标 primary 保留原 id，
+  // 已有的 PackExePath_arknights-endfield 配置不会丢。
+  // 短名复用宿主码表（GL→国际服 / CN→国服 / BILI→B服），不在包里重复维护翻译。
+  // markerDirs 覆盖只用于自动查找时区分安装目录，实际目录名待按各服客户端实测校正。
+  "servers": [
+    {
+      "code": "GL",
+      "id": "global",
+      "markerDirs": [ "Arknights Endfield Global", "Endfield Global" ]
+    },
+    {
+      "code": "CN",
+      "primary": true
+    },
+    {
+      "code": "BILI",
+      "id": "bilibili",
+      "serverIcon": "assets/launcher/endfield/server-bilibili.png",
+      "markerDirs": [ "Arknights Endfield bilibili", "Endfield bilibili" ]
+    }
+  ],
 
   "exeNames": [ "Endfield.exe" ],
   "markerDirs": [ "Arknights Endfield" ],
@@ -40,11 +65,26 @@
     "accounts": false
   },
 
-  // Artwork shipped by the pack. Empty = host falls back to the default wallpaper.
+  // Artwork shipped by the pack (paths relative to the pack folder; source: official
+  // GRYPHLINK launcher, see docs/资源-GRYPHLINK启动器封面与壁纸提取-交接.md).
   "assets": {
-    "background": null,
-    "poster": null,
-    "logo": null
+    // 主页缺省背景：用户没选背景也没拖图时铺这张（2324×1392 主视觉）。
+    "background": "assets/launcher/endfield/background.webp",
+    // 主题强调色：宿主直接拿它给按钮 / 开关等 Accent 控件上色，不再从背景图投票取色。
+    // 这张主视觉白灰底 + 角色蓝灰占面积大，色相投票会算出蓝色（#477AB2）而不是品牌黄。
+    "accentColor": "#E6D800",
+    // 游戏切换器全屏卡片图：endfield_icons-main 的本地化字标 SVG 栅格化后反色成
+    // 白字，合成到黑底 960×540（字标统一占卡宽 84% 居中，与鸣潮/战双「纯黑底
+    // 大字标」卡片同一风格）。语言键与 names 同一套 tag，宿主按界面语言挑一张，
+    // 缺语言回落 en。zh-Hant 无繁体字标源文件，暂用简中版。
+    "logo": {
+      "zh-Hans": "assets/launcher/endfield/logo/zh-hans.png",
+      "zh-Hant": "assets/launcher/endfield/logo/zh-hant.png",
+      "en": "assets/launcher/endfield/logo/en-us.png",
+      "ja": "assets/launcher/endfield/logo/ja-jp.png",
+      "ko": "assets/launcher/endfield/logo/ko-kr.png"
+    },
+    "poster": null
   },
 
   // Per-item images (gacha characters / weapons), files named <id>.png inside this folder.
@@ -53,7 +93,10 @@
   // Web panels rendered by the host WebView. The pack owns html/js/css and the API calls;
   // the host only provides the container, the login state and the script bridge.
   "ui": {
-    "community": "ui/community.html"
+    "community": "ui/community.html",
+    // 抽卡页：宿主在「寻访记录」入口挂通用 WebView 容器，页面自己走 provider 的
+    // fetch / gacha-stats / gacha-url；统计口径与接口知识全在包内（gacha.py + provider.py）。
+    "gacha": "ui/gacha.html"
   },
 
   // 寻访记录由外部进程提供（protocol 1，见 docs/游戏包-Provider协议-交接.md）。
@@ -65,48 +108,44 @@
     "protocol": 1
   },
 
-  // 宿主 UI 里由作者定的文案（缺省回落宿主的翻译）
+  // 宿主 UI 文案覆盖：键 = lang:<Lang 属性名>，宿主只认键不认游戏词；缺键回落宿主翻译。
+  // gacha.title 是旧版槽位，保留兼容。带 {0} 的键必须保留占位符。
   "strings": {
-    "gacha.title": "寻访记录"
+    // 社区导航项的宿主文案覆盖：键是通用 Lang 属性名，宿主不认识「森空岛」这个词。
+    // 包声明了 ui.community 面板，宿主会把这个导航项显示出来并改道到通用 WebView 容器。
+    "lang:KuroBbs": "森空岛",
+    "gacha.title": "寻访记录",
+    "lang:GachaLogPage_ConveneRecords": "寻访记录",
+    "lang:GachaLogPage_EmptyTitle": "暂无寻访记录",
+    "lang:GachaLogPage_EmptyDesc": "寻访记录由游戏包提供；完成账号授权后，点击「更新记录」即可同步数据。",
+    "lang:GachaLogPage_ImportUrl": "导入寻访记录链接",
+    "lang:GachaLogPage_ImportUrlDesc": "粘贴寻访记录数据源链接，或从其他工具复制。",
+    "lang:GachaLogPage_ImportUrlPlaceholder": "粘贴寻访记录链接",
+    "lang:GachaLogPage_UrlInvalid": "链接无效：请粘贴可读取寻访记录的完整链接",
+    "lang:GachaLogPage_CopyUrl": "复制寻访记录链接",
+    "lang:GachaLogPage_ClearSavedUrlConfirm": "确定删除本地保存的寻访记录链接吗？（已同步的记录不会删除）",
+    "lang:GachaLogPage_NoSavedUrl": "没有已保存的寻访记录链接，请先执行一次「更新（全部）」",
+    "lang:GachaLogPage_LinkHelp": "寻访记录链接失效？",
+    "lang:GachaLogPage_LinkHelpDesc": "重新获取链接后再更新记录",
+    "lang:GachaLogPage_LinkExpired": "寻访记录链接已失效",
+    "lang:GachaLogPage_LinkExpiredDesc": "链接已失效（接口返回 {0}），请重新获取寻访记录链接",
+    "lang:GachaLogPage_FetchEmpty": "未获取到任何寻访记录",
+    "lang:GachaLogPage_FetchEmptyDesc": "接口未报错但全部卡池均无记录，请重新获取寻访记录链接后重试",
+    "lang:GachaLogPage_UpdateFailed": "更新寻访记录失败：{0}",
+    "lang:GachaLogPage_LogNotFound": "未找到寻访记录数据源：请先完成账号授权，或在「更新记录」菜单中选择「粘贴链接导入」",
+    "lang:GachaLogPage_UrlNotFound": "未找到寻访记录链接，请重新获取后再试",
+    "lang:GachaLogPage_DeleteConfirmText": "即将删除 UID {0} 的所有本地寻访记录，此操作不可恢复。",
+    "lang:GachaLogPage_ExportEmpty": "当前账号没有可导出的寻访记录",
+    "lang:GachaLogPage_RefetchFromCloudGame": "重新获取寻访记录链接",
+    "lang:CloudGame_StatusDefault": "获取寻访记录链接",
+    "lang:CloudGame_StatusOk": "获取成功（玩家 {0}），正在同步寻访记录…"
   },
 
-  // 设置表：宿主按这张表渲染，不认识终末地。registry 路径来自实测（271 个值）。
-  // 值名是 Unity PlayerPrefs 的 name_hHash 形式，改名前先用 regedit 对照游戏 UI 校准。
-  "settings": {
-    "store": { "type": "registry", "path": "HKCU\\Software\\Hypergryph\\Endfield" },
-    "groups": [
-      {
-        "id": "display",
-        "label": "显示",
-        "items": [
-          { "key": "Screenmanager Fullscreen mode_h3630240806", "label": "显示模式", "type": "enum",
-            "options": [ { "value": 0, "label": "独占全屏" }, { "value": 1, "label": "无边框窗口" }, { "value": 2, "label": "窗口" } ] },
-          { "key": "Screenmanager Resolution Width_h182942802", "label": "分辨率 宽", "type": "int", "min": 640, "max": 7680 },
-          { "key": "Screenmanager Resolution Height_h2627697771", "label": "分辨率 高", "type": "int", "min": 480, "max": 4320 }
-        ]
-      },
-      {
-        "id": "graphics",
-        "label": "画质",
-        "items": [
-          { "key": "video_quality_main_h2648490162", "label": "总体画质", "type": "enum",
-            "options": [ { "value": 1, "label": "低" }, { "value": 2, "label": "中" }, { "value": 3, "label": "高" }, { "value": 4, "label": "极高" } ] },
-          { "key": "video_quality_shadowmap_1_h128234669", "label": "阴影", "type": "enum",
-            "options": [ { "value": 1000, "label": "高" }, { "value": 2000, "label": "中" }, { "value": 3000, "label": "低" }, { "value": 4000, "label": "极低" } ] },
-          { "key": "video_quality_upscaler_2_h1962157691", "label": "画质提升", "type": "enum",
-            "options": [ { "value": 1000, "label": "DLSS" }, { "value": 2000, "label": "TAAU" }, { "value": 3000, "label": "AMD FSR 3" } ] }
-        ]
-      },
-      {
-        "id": "audio",
-        "label": "音频",
-        "items": [
-          { "key": "audio_suspend_unfocused_h977418127", "label": "后台静音", "type": "toggle",
-            "options": [ { "value": 0, "label": "关" }, { "value": 1000, "label": "开" } ] }
-        ]
-      }
-    ]
-  },
+  // 设置页：语义在 settings.cs（C#，settings-provider.exe）里，走 provider 协议 settings-model
+  // 返回通用行模型（toggle/choice/number/slider + visibleWhen/enabledWhen/writes），宿主只渲染。
+  // 键名/联动/GPU 过滤全部在包代码里，注册表写入由宿主按下方的 store 路径统一执行。
+  // 旧 JSON 设置表已删除（表达式能力不够：联动、模式互换、N 卡过滤都写不出来）。
+  "settingsProvider": { "command": "settings-provider.exe", "protocol": 1 },
 
   // Install/update feed. null = the official launcher owns updates.
   "update": null
