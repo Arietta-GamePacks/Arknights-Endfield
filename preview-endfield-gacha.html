@@ -107,8 +107,6 @@
   .phead .tt { font-size:16px; flex:none; }
   .prange { font-size:11.5px; color:var(--sec); margin-top:2px; min-height:14px; overflow:hidden;
     text-overflow:ellipsis; white-space:nowrap; }
-  .pbadge { display:inline-block; font-size:10.5px; color:var(--acc); margin-top:5px;
-    border:1px solid rgba(230,216,0,.32); border-radius:20px; padding:1px 8px; background:rgba(230,216,0,.06); }
   .pdivider { height:1px; background:var(--line); margin:7px 0 5px; }
   .stat { display:flex; justify-content:space-between; align-items:center; margin:3px 0; font-size:12px; }
   .stat .l { display:flex; gap:4px; }
@@ -184,6 +182,7 @@
 <div class="note">
   <b>寻访记录 · WinUI3 原生页预览稿</b>（对照宿主 <code>src/Features/GachaLog/GachaLogPage.xaml</code> + Starward 的 <code>GachaStatsCard.xaml</code>）。
   这一版是<b>给宿主写的 XAML 打样</b>，不是 WebView 面板：窗口骨架、44px 页头、268px 卡池列、Segmented、渐变垫抽条、508px 右侧 SplitView 全部按鸣潮那套 1:1 复刻，只把数据换成终末地。
+  <b>首页最多 4 个卡池列</b>（一屏完整可见），列头只保留池名 / 总抽数 / 日期，日期下面不加任何额外徽标。
   <b>可交互</b>：更新记录下拉 / 设置 Flyout / 账号切换 / 6★·5★ 分栏 / 隐藏卡池 / 右侧物品统计开合 / 控件标注开关。数据为演示样例。
 </div>
 
@@ -288,9 +287,10 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
 const HUES = ["#4b6ea8","#8a5ba8","#a86a3e","#3f8b7d","#9a4d63","#5d6f9c","#8b7a3f","#6b5aa8"];
 const hue = (s) => HUES[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % HUES.length];
 
+/* 与鸣潮默认视图一致：首页最多 4 个卡池列（268×4 + 12×3 = 1108px，一屏完整可见） */
 const POOLS = [
   { id:"special", name:"特许寻访 · 演示期", total:78,
-    range:"2026/10/28 09:12:40 - 2026/11/14 21:40:06", badge:"大保底 34 / 120",
+    range:"2026/10/28 09:12:40 - 2026/11/14 21:40:06",
     avg:"38.50", up:"42.00 (2)", c6:"2 [2.56%]", c5:"9 [11.54%]", c4:"67 [85.90%]",
     upColumn:true, pity:23,
     six:[
@@ -304,7 +304,7 @@ const POOLS = [
       { name:"赛希", pity:6, time:"2026/10/29 22:17" },
     ] },
   { id:"rerun", name:"重构寻访 #1", total:34,
-    range:"2026/11/02 14:20:11 - 2026/11/14 21:12:33", badge:"官方累计 34 / 120",
+    range:"2026/11/02 14:20:11 - 2026/11/14 21:12:33",
     avg:"32.00", up:"32.00 (1)", c6:"1 [2.94%]", c5:"4 [11.76%]", c4:"29 [85.29%]",
     upColumn:true, pity:9,
     six:[ { name:"余烬", pity:32, up:true, tag:"UP", time:"2026/11/05 18:36", free:false } ],
@@ -312,17 +312,8 @@ const POOLS = [
       { name:"艾维文娜", pity:8, time:"2026/11/13 10:02" },
       { name:"卡契尔", pity:5, time:"2026/11/08 16:44" },
     ] },
-  { id:"joint", name:"辉光庆典", total:20,
-    range:"2026/10/18 20:04:02 - 2026/10/24 23:51:19", badge:"小保底 80 · 无大保底",
-    avg:"—", up:"—", c6:"0 [0.00%]", c5:"3 [15.00%]", c4:"17 [85.00%]",
-    upColumn:false, pity:20,
-    six:[],
-    five:[
-      { name:"安塔尔", pity:6, time:"2026/10/23 21:10" },
-      { name:"弧光", pity:8, time:"2026/10/21 09:33" },
-    ] },
   { id:"standard", name:"基础寻访", total:60,
-    range:"2026/09/12 08:31:55 - 2026/11/13 22:08:41", badge:"保底独立 · 80",
+    range:"2026/09/12 08:31:55 - 2026/11/13 22:08:41",
     avg:"56.00", up:"—", c6:"1 [1.67%]", c5:"7 [11.67%]", c4:"52 [86.67%]",
     upColumn:false, pity:4,
     six:[ { name:"骏卫", pity:56, up:false, tag:"常驻", time:"2026/10/17 13:27", free:false } ],
@@ -332,7 +323,7 @@ const POOLS = [
       { name:"红隼", pity:7, time:"2026/10/02 20:14" },
     ] },
   { id:"weapon", name:"限定申领 · 演示期", total:30,
-    range:"2026/11/01 11:20:08 - 2026/11/14 20:55:12", badge:"武器 40 / 80 保底",
+    range:"2026/11/01 11:20:08 - 2026/11/14 20:55:12",
     avg:"28.00", up:"28.00 (1)", c6:"1 [3.33%]", c5:"4 [13.33%]", c4:"25 [83.33%]",
     upColumn:true, pity:2,
     six:[ { name:"白夜铳", pity:28, up:true, tag:"UP", time:"2026/11/07 21:33", free:false } ],
@@ -340,12 +331,6 @@ const POOLS = [
       { name:"澄明", pity:6, time:"2026/11/12 14:09" },
       { name:"碎星", pity:8, time:"2026/11/03 10:41" },
     ] },
-  { id:"rerunw", name:"重构申领 #2", total:20,
-    range:"2026/11/09 09:15:30 - 2026/11/14 19:02:44", badge:"按版本期次分段",
-    avg:"—", up:"—", c6:"0 [0.00%]", c5:"2 [10.00%]", c4:"18 [90.00%]",
-    upColumn:false, pity:20,
-    six:[],
-    five:[ { name:"旧誓", pity:7, time:"2026/11/13 18:20" } ] },
 ];
 
 const ITEMS = [
@@ -353,8 +338,7 @@ const ITEMS = [
   { n:"骏卫", c:1, q:6 }, { n:"白夜铳", c:1, q:6 },
   { n:"秋栗", c:3, q:5 }, { n:"埃特拉", c:2, q:5 }, { n:"狼卫", c:2, q:5 },
   { n:"赛希", c:2, q:5 }, { n:"艾维文娜", c:2, q:5 },
-  { n:"安塔尔", c:1, q:5 }, { n:"弧光", c:1, q:5 }, { n:"晞光", c:2, q:5 },
-  { n:"澄明", c:1, q:5 }, { n:"旧誓", c:1, q:5 },
+  { n:"晞光", c:2, q:5 }, { n:"澄明", c:1, q:5 },
 ];
 
 /* BarItemTemplate：CreateBarBrush 的硬切渐变（绿 < 66 / 红 >= 66，80 为硬保底） */
@@ -390,7 +374,6 @@ function poolColumn(p) {
   return `<div class="poolcol" data-pool="${p.id}">
     <div class="phead"><span class="nm">${esc(p.name)}</span><span class="tt">${p.total}</span></div>
     <div class="prange">${esc(p.range)}</div>
-    <div class="pbadge">${esc(p.badge)}</div>
     <div class="pdivider"></div>
     <div class="stat c-avg"><span class="l"><b>6★</b><span>平均</span>${p.up !== "—" ? "<span>UP</span>" : ""}</span>
       <span class="r">${esc(p.avg)}${p.up !== "—" ? " / " + esc(p.up) : ""}</span></div>

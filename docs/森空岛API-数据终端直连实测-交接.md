@@ -89,6 +89,28 @@ sign  = MD5( HMAC-SHA256(key = data.token, msg = str).hexdigest() 的头 )
 
 `binding` 的终末地条目比方舟多一层 `roles[]` / `defaultRole`（方舟 `roles` 为空），写解析时别只按方舟结构取 `uid`。
 
+### App「个人主页」= card/detail 字段对照（2026-11-15 补验）
+
+用户发来森空岛 App 个人主页截图（纸鸢 / UID 1493322590），与本轮真打保存的 `skland_detail.json` 逐项对上 —— **App 个人主页不需要新端点，`card/detail` 一份全包**：
+
+| 截图区块 | JSON 字段（`data.detail.*`） | 实测值 |
+|---|---|---|
+| 头像 / 昵称 / UID / 苏醒日 | `base.avatarUrl` / `base.name` / `base.roleId` / `base.createTime`(秒级 ts，1769047200=2026-01-22) | ✓ |
+| 主线任务 | `base.mainMission`（本账号 `id/description` 为空串） | ✓ |
+| 权限等阶 60 | `base.level` | 60 |
+| 探索等级 7 | `base.worldLevel` | 7 |
+| 干员 26 / 武器 49 / 档案 309 | `base.charNum` / `base.weaponNum` / `base.docNum` | 26/49/309 |
+| 干员卡片列表 | `chars[]`（name / Lv / rarity / profession / avatarSqUrl 等） | ✓ |
+| 理智 126/360 + 回复时间 28h4min | `dungeon.curStamina` / `maxStamina` / `maxTs`（实测 120 是凌晨拉的，理智随时间回复，语义一致） | ✓ |
+| 活跃度 0/100 | `dailyMission.dailyActivation` / `maxDailyActivation` | 0/100 |
+| 每周事务 7/10 | `weeklyMission.score` / `total` | 7/10 |
+| 通行证 60/60 | `bpSystem.curLevel` / `maxLevel` | 60/60 |
+| 信用 178/300 | `credit.count` / `total`（连数值都同截图） | ✓ |
+| 危机合约横幅 | `crisisContract`（`_module_crisis` 已解析） | ✓ |
+| 狂热轮换 II「-」 | war-echoes `data.warEchoes.seasons[].weeks[]` 当期周（名字+星数；11-15 二次真打确认，面板「当期轮换」行已接） | ✓ |
+
+补充：`quickaccess[]` 即 App 首页快捷入口（养成计算器、每日签到等，`skland://web` 深链）。
+
 ## 四、其他端点（来自现役插件源码，本轮未逐一真打）
 
 | 用途 | 端点 | 签名 |

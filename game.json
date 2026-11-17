@@ -22,23 +22,45 @@
 
   // 服务器变体：宿主把一份 manifest 展开成多个可切换条目，共用封面 / provider / 设置页，
   // 但各自保存 exe 路径（PackExePath_<变体id>）与切换器选中状态。
-  // 顺序对齐鸣潮：国际服 → 国服 → B服；CN 标 primary 保留原 id，
+  // 顺序对齐鸣潮：全球 → 中国 → Bilibili；CN 标 primary 保留原 id，
   // 已有的 PackExePath_arknights-endfield 配置不会丢。
-  // 短名复用宿主码表（GL→国际服 / CN→国服 / BILI→B服），不在包里重复维护翻译。
+  // 服短名由包自己声明（names），按终末地官方叫法，不回落到宿主码表的「国际服 / 中国服 / 哔哩哔哩」；
+  // 缺语言时宿主回落 en，再缺回落第一个。
   // markerDirs 覆盖只用于自动查找时区分安装目录，实际目录名待按各服客户端实测校正。
   "servers": [
     {
       "code": "GL",
       "id": "global",
+      "names": {
+        "zh-Hans": "全球",
+        "zh-Hant": "全球",
+        "en": "Global",
+        "ja": "グローバル",
+        "ko": "글로벌"
+      },
       "markerDirs": [ "Arknights Endfield Global", "Endfield Global" ]
     },
     {
       "code": "CN",
-      "primary": true
+      "primary": true,
+      "names": {
+        "zh-Hans": "中国",
+        "zh-Hant": "中國",
+        "en": "China",
+        "ja": "中国",
+        "ko": "중국"
+      }
     },
     {
       "code": "BILI",
       "id": "bilibili",
+      "names": {
+        "zh-Hans": "Bilibili",
+        "zh-Hant": "Bilibili",
+        "en": "Bilibili",
+        "ja": "Bilibili",
+        "ko": "Bilibili"
+      },
       "serverIcon": "assets/launcher/endfield/server-bilibili.png",
       "markerDirs": [ "Arknights Endfield bilibili", "Endfield bilibili" ]
     }
@@ -62,7 +84,12 @@
     "gacha": true,
     "settings": true,
     "update": false,
-    "accounts": false
+    "accounts": false,
+    // 原生社区模块（森空岛）：宿主「社区」导航项 → 原生 PackCommunityPage，
+    // 模型由 provider 的 community-model 提供（NavigationView + Frame + 通用块渲染）。
+    "community": true,
+    // Pack provider offers a daily sign-in action (community-action) the host can auto-run.
+    "communityAutoSign": true
   },
 
   // Artwork shipped by the pack (paths relative to the pack folder; source: official
@@ -90,14 +117,19 @@
   // Per-item images (gacha characters / weapons), files named <id>.png inside this folder.
   "icons": "icons",
 
+  // 云同步声明：数据目录里哪些文件搭宿主 WebDAV 同步的车（通配只支持 *，平目录）。
+  // gacha-*.json 是按凭证指纹一账号一份的寻访缓存（provider.py cache_key）——链接过期后
+  // 本地就是唯一副本，值得跨设备。community.json 由宿主拆成按账号对象自行同步，不用声明；
+  // wiki 图标等可再生缓存不声明 = 永远只留在本机。
+  "sync": ["gacha-*.json"],
+
   // Web panels rendered by the host WebView. The pack owns html/js/css and the API calls;
   // the host only provides the container, the login state and the script bridge.
-  "ui": {
-    "community": "ui/community.html",
-    // 抽卡页：宿主在「寻访记录」入口挂通用 WebView 容器，页面自己走 provider 的
-    // fetch / gacha-stats / gacha-url；统计口径与接口知识全在包内（gacha.py + provider.py）。
-    "gacha": "ui/gacha.html"
-  },
+  // （community 曾是本地 WebView 面板，已按原生 WinUI3 方案作废删除，
+  //   见 docs/森空岛模块-原生WinUI3方案-归档.md；实现交接文档在宿主仓库 docs/。）
+  // 抽卡页已改走宿主原生 WinUI3 页（PackGachaPage + provider 的 gacha-model），
+  // 不再由包声明 WebView 面板；ui 留空供后续面板使用。
+  "ui": {},
 
   // 寻访记录由外部进程提供（protocol 1，见 docs/游戏包-Provider协议-交接.md）。
   // 用 py launcher 而不是 python：后者在装了 Microsoft Store 版时会命中应用执行别名，
@@ -108,37 +140,147 @@
     "protocol": 1
   },
 
-  // 宿主 UI 文案覆盖：键 = lang:<Lang 属性名>，宿主只认键不认游戏词；缺键回落宿主翻译。
-  // gacha.title 是旧版槽位，保留兼容。带 {0} 的键必须保留占位符。
+  // 宿主 UI 文案覆盖：键 = lang:<Lang 属性名>.<语言tag>，宿主查 tag → 裸键 → 宿主翻译。
+  // 2026-11-17 起全部带语言后缀（裸键全语言生效，会把宿主已翻的 en/ja/… 打回中文）。
+  // zh-Hans / zh-Hant / en / ja / ko 由包提供（en/ja/ko 用官方术语 Headhunting，见
+  // endfield.wiki.gg；繁体为本包繁化）；fr/de/es/th/pt-BR 不写覆盖 = 回落宿主通用译文。
+  // 带占位符 {0} 的键必须保留占位符。
   "strings": {
-    // 社区导航项的宿主文案覆盖：键是通用 Lang 属性名，宿主不认识「森空岛」这个词。
-    // 包声明了 ui.community 面板，宿主会把这个导航项显示出来并改道到通用 WebView 容器。
-    "lang:KuroBbs": "森空岛",
-    "gacha.title": "寻访记录",
-    "lang:GachaLogPage_ConveneRecords": "寻访记录",
-    "lang:GachaLogPage_EmptyTitle": "暂无寻访记录",
-    "lang:GachaLogPage_EmptyDesc": "寻访记录由游戏包提供；完成账号授权后，点击「更新记录」即可同步数据。",
-    "lang:GachaLogPage_ImportUrl": "导入寻访记录链接",
-    "lang:GachaLogPage_ImportUrlDesc": "粘贴寻访记录数据源链接，或从其他工具复制。",
-    "lang:GachaLogPage_ImportUrlPlaceholder": "粘贴寻访记录链接",
-    "lang:GachaLogPage_UrlInvalid": "链接无效：请粘贴可读取寻访记录的完整链接",
-    "lang:GachaLogPage_CopyUrl": "复制寻访记录链接",
-    "lang:GachaLogPage_ClearSavedUrlConfirm": "确定删除本地保存的寻访记录链接吗？（已同步的记录不会删除）",
-    "lang:GachaLogPage_NoSavedUrl": "没有已保存的寻访记录链接，请先执行一次「更新（全部）」",
-    "lang:GachaLogPage_LinkHelp": "寻访记录链接失效？",
-    "lang:GachaLogPage_LinkHelpDesc": "重新获取链接后再更新记录",
-    "lang:GachaLogPage_LinkExpired": "寻访记录链接已失效",
-    "lang:GachaLogPage_LinkExpiredDesc": "链接已失效（接口返回 {0}），请重新获取寻访记录链接",
-    "lang:GachaLogPage_FetchEmpty": "未获取到任何寻访记录",
-    "lang:GachaLogPage_FetchEmptyDesc": "接口未报错但全部卡池均无记录，请重新获取寻访记录链接后重试",
-    "lang:GachaLogPage_UpdateFailed": "更新寻访记录失败：{0}",
-    "lang:GachaLogPage_LogNotFound": "未找到寻访记录数据源：请先完成账号授权，或在「更新记录」菜单中选择「粘贴链接导入」",
-    "lang:GachaLogPage_UrlNotFound": "未找到寻访记录链接，请重新获取后再试",
-    "lang:GachaLogPage_DeleteConfirmText": "即将删除 UID {0} 的所有本地寻访记录，此操作不可恢复。",
-    "lang:GachaLogPage_ExportEmpty": "当前账号没有可导出的寻访记录",
-    "lang:GachaLogPage_RefetchFromCloudGame": "重新获取寻访记录链接",
-    "lang:CloudGame_StatusDefault": "获取寻访记录链接",
-    "lang:CloudGame_StatusOk": "获取成功（玩家 {0}），正在同步寻访记录…"
+    // 社区导航项的宿主文案覆盖：键是通用 Lang 属性名，宿主不认识「森空岛」这个词
+    //（宿主通用表在这键上是鸣潮的「库街区 / Kuro BBS」，对终末地是错的，所以 10 语全包）。
+    "lang:KuroBbs.zh-Hans": "森空岛",
+    "lang:KuroBbs.zh-Hant": "森空島",
+    "lang:KuroBbs.en": "Skland",
+    "lang:KuroBbs.ja": "スカランド",
+    "lang:KuroBbs.ko": "스칸드",
+    "lang:KuroBbs.fr": "Skland",
+    "lang:KuroBbs.de": "Skland",
+    "lang:KuroBbs.es": "Skland",
+    "lang:KuroBbs.th": "Skland",
+    "lang:KuroBbs.pt-BR": "Skland",
+
+    // gacha.title 是旧版槽位（宿主 LegacyPackSlots 回退用），保留兼容，值随 ConveneRecords。
+    "gacha.title.zh-Hans": "寻访记录",
+    "gacha.title.zh-Hant": "尋訪記錄",
+    "gacha.title.en": "Headhunting Records",
+    "gacha.title.ja": "ヘッドハンティング記録",
+    "gacha.title.ko": "헤드헌팅 기록",
+
+    "lang:GachaLogPage_ConveneRecords.zh-Hans": "寻访记录",
+    "lang:GachaLogPage_ConveneRecords.zh-Hant": "尋訪記錄",
+    "lang:GachaLogPage_ConveneRecords.en": "Headhunting Records",
+    "lang:GachaLogPage_ConveneRecords.ja": "ヘッドハンティング記録",
+    "lang:GachaLogPage_ConveneRecords.ko": "헤드헌팅 기록",
+    "lang:GachaLogPage_EmptyTitle.zh-Hans": "暂无寻访记录",
+    "lang:GachaLogPage_EmptyTitle.zh-Hant": "暫無尋訪記錄",
+    "lang:GachaLogPage_EmptyTitle.en": "No headhunting records yet",
+    "lang:GachaLogPage_EmptyTitle.ja": "ヘッドハンティング記録がまだありません",
+    "lang:GachaLogPage_EmptyTitle.ko": "아직 헤드헌팅 기록이 없습니다",
+    "lang:GachaLogPage_EmptyDesc.zh-Hans": "寻访记录由游戏包提供；完成账号授权后，点击「更新记录」即可同步数据。",
+    "lang:GachaLogPage_EmptyDesc.zh-Hant": "尋訪記錄由遊戲包提供；完成帳號授權後，點擊「更新記錄」即可同步數據。",
+    "lang:GachaLogPage_EmptyDesc.en": "Headhunting records are provided by the game pack; authorize your account, then click 'Update Records' to sync.",
+    "lang:GachaLogPage_EmptyDesc.ja": "ヘッドハンティング記録はゲームパックが提供します。アカウント連携の後、「記録を更新」を押すと同期されます。",
+    "lang:GachaLogPage_EmptyDesc.ko": "헤드헌팅 기록은 게임 팩이 제공합니다. 계정 인증 후 '기록 업데이트'를 누르면 동기화됩니다.",
+    "lang:GachaLogPage_ImportUrl.zh-Hans": "导入寻访记录链接",
+    "lang:GachaLogPage_ImportUrl.zh-Hant": "匯入尋訪記錄連結",
+    "lang:GachaLogPage_ImportUrl.en": "Import a headhunting records URL",
+    "lang:GachaLogPage_ImportUrl.ja": "ヘッドハンティング記録のリンクを取り込む",
+    "lang:GachaLogPage_ImportUrl.ko": "헤드헌팅 기록 링크 가져오기",
+    "lang:GachaLogPage_ImportUrlDesc.zh-Hans": "粘贴寻访记录数据源链接，或从其他工具复制。",
+    "lang:GachaLogPage_ImportUrlDesc.zh-Hant": "貼上尋訪記錄資料來源連結，或從其他工具複製。",
+    "lang:GachaLogPage_ImportUrlDesc.en": "Paste a headhunting records data source link, or copy one from another tool.",
+    "lang:GachaLogPage_ImportUrlDesc.ja": "ヘッドハンティング記録のデータソースリンクを貼り付けるか、他のツールからコピーしてください。",
+    "lang:GachaLogPage_ImportUrlDesc.ko": "헤드헌팅 기록 데이터 소스 링크를 붙여넣거나 다른 도구에서 복사하세요.",
+    "lang:GachaLogPage_ImportUrlPlaceholder.zh-Hans": "粘贴寻访记录链接",
+    "lang:GachaLogPage_ImportUrlPlaceholder.zh-Hant": "貼上尋訪記錄連結",
+    "lang:GachaLogPage_ImportUrlPlaceholder.en": "Paste a headhunting records link",
+    "lang:GachaLogPage_ImportUrlPlaceholder.ja": "ヘッドハンティング記録のリンクを貼り付け",
+    "lang:GachaLogPage_ImportUrlPlaceholder.ko": "헤드헌팅 기록 링크 붙여넣기",
+    "lang:GachaLogPage_UrlInvalid.zh-Hans": "链接无效：请粘贴可读取寻访记录的完整链接",
+    "lang:GachaLogPage_UrlInvalid.zh-Hant": "連結無效：請貼上可讀取尋訪記錄的完整連結",
+    "lang:GachaLogPage_UrlInvalid.en": "Invalid link: paste the full headhunting records link that contains record data",
+    "lang:GachaLogPage_UrlInvalid.ja": "リンクが無効です：ヘッドハンティング記録を読み取れる完全なリンクを貼り付けてください",
+    "lang:GachaLogPage_UrlInvalid.ko": "링크가 잘못되었습니다. 헤드헌팅 기록을 읽을 수 있는 전체 링크를 붙여넣으세요",
+    "lang:GachaLogPage_CopyUrl.zh-Hans": "复制寻访记录链接",
+    "lang:GachaLogPage_CopyUrl.zh-Hant": "複製尋訪記錄連結",
+    "lang:GachaLogPage_CopyUrl.en": "Copy headhunting records link",
+    "lang:GachaLogPage_CopyUrl.ja": "ヘッドハンティング記録のリンクをコピー",
+    "lang:GachaLogPage_CopyUrl.ko": "헤드헌팅 기록 링크 복사",
+    "lang:GachaLogPage_ClearSavedUrlConfirm.zh-Hans": "确定删除本地保存的寻访记录链接吗？（已同步的记录不会删除）",
+    "lang:GachaLogPage_ClearSavedUrlConfirm.zh-Hant": "確定刪除本地保存的尋訪記錄連結嗎？（已同步的記錄不會刪除）",
+    "lang:GachaLogPage_ClearSavedUrlConfirm.en": "Delete the locally saved headhunting records link? (Records already synced won't be deleted.)",
+    "lang:GachaLogPage_ClearSavedUrlConfirm.ja": "保存済みのヘッドハンティング記録リンクを削除しますか？（同期済みの記録は削除されません）",
+    "lang:GachaLogPage_ClearSavedUrlConfirm.ko": "저장된 헤드헌팅 기록 링크를 삭제할까요? (이미 동기화된 기록은 삭제되지 않습니다)",
+    "lang:GachaLogPage_NoSavedUrl.zh-Hans": "没有已保存的寻访记录链接，请先执行一次「更新（全部）」",
+    "lang:GachaLogPage_NoSavedUrl.zh-Hant": "沒有已保存的尋訪記錄連結，請先執行一次「更新（全部）」",
+    "lang:GachaLogPage_NoSavedUrl.en": "No saved headhunting records link — run 'Update (All)' once first",
+    "lang:GachaLogPage_NoSavedUrl.ja": "保存済みのリンクがありません。先に「更新（すべて）」を一度実行してください",
+    "lang:GachaLogPage_NoSavedUrl.ko": "저장된 헤드헌팅 기록 링크가 없습니다. 먼저 '업데이트(전체)'를 한 번 실행하세요",
+    // 设置面板的帮助文案（简繁覆盖；其余界面语言回落宿主翻译表）。
+    "lang:GachaLogPage_LinkHelp.zh-Hans": "总是提示获取寻访记录失败？",
+    "lang:GachaLogPage_LinkHelp.zh-Hant": "總是提示獲取尋訪記錄失敗？",
+    "lang:GachaLogPage_SelectPlayer.zh-Hans": "未登录",
+    "lang:GachaLogPage_SelectPlayer.zh-Hant": "未登錄",
+    "lang:GachaLogPage_LinkExpired.zh-Hans": "寻访记录链接已失效",
+    "lang:GachaLogPage_LinkExpired.zh-Hant": "尋訪記錄連結已失效",
+    "lang:GachaLogPage_LinkExpired.en": "Headhunting records link expired",
+    "lang:GachaLogPage_LinkExpired.ja": "ヘッドハンティング記録のリンクが失効しました",
+    "lang:GachaLogPage_LinkExpired.ko": "헤드헌팅 기록 링크가 만료되었습니다",
+    "lang:GachaLogPage_LinkExpiredDesc.zh-Hans": "链接已失效（接口返回 {0}），请重新获取寻访记录链接",
+    "lang:GachaLogPage_LinkExpiredDesc.zh-Hant": "連結已失效（介面返回 {0}），請重新取得尋訪記錄連結",
+    "lang:GachaLogPage_LinkExpiredDesc.en": "The link has expired (API returned {0}) — fetch a new headhunting records link",
+    "lang:GachaLogPage_LinkExpiredDesc.ja": "リンクが失効しました（API 返答 {0}）。ヘッドハンティング記録のリンクを再取得してください",
+    "lang:GachaLogPage_LinkExpiredDesc.ko": "링크가 만료되었습니다 (API 응답 {0}). 헤드헌팅 기록 링크를 다시 가져오세요",
+    "lang:GachaLogPage_FetchEmpty.zh-Hans": "未获取到任何寻访记录",
+    "lang:GachaLogPage_FetchEmpty.zh-Hant": "未取得任何尋訪記錄",
+    "lang:GachaLogPage_FetchEmpty.en": "No headhunting records found",
+    "lang:GachaLogPage_FetchEmpty.ja": "ヘッドハンティング記録を 1 件も取得できませんでした",
+    "lang:GachaLogPage_FetchEmpty.ko": "헤드헌팅 기록을 가져오지 못했습니다",
+    "lang:GachaLogPage_FetchEmptyDesc.zh-Hans": "接口未报错但全部卡池均无记录，请重新获取寻访记录链接后重试",
+    "lang:GachaLogPage_FetchEmptyDesc.zh-Hant": "介面未報錯但全部卡池均無記錄，請重新取得尋訪記錄連結後重試",
+    "lang:GachaLogPage_FetchEmptyDesc.en": "The API returned no error but every banner is empty — fetch a new headhunting records link and retry",
+    "lang:GachaLogPage_FetchEmptyDesc.ja": "API はエラーを返しませんでしたが、全プールに記録がありません。ヘッドハンティング記録のリンクを再取得して再試行してください",
+    "lang:GachaLogPage_FetchEmptyDesc.ko": "API는 오류를 반환하지 않았지만 모든 카드풀이 비어 있습니다. 헤드헌팅 기록 링크를 다시 가져온 뒤 재시도하세요",
+    "lang:GachaLogPage_UpdateFailed.zh-Hans": "更新寻访记录失败：{0}",
+    "lang:GachaLogPage_UpdateFailed.zh-Hant": "更新尋訪記錄失敗：{0}",
+    "lang:GachaLogPage_UpdateFailed.en": "Failed to update headhunting records: {0}",
+    "lang:GachaLogPage_UpdateFailed.ja": "ヘッドハンティング記録の更新に失敗しました：{0}",
+    "lang:GachaLogPage_UpdateFailed.ko": "헤드헌팅 기록 업데이트 실패: {0}",
+    "lang:GachaLogPage_LogNotFound.zh-Hans": "未找到寻访记录数据源：请先完成账号授权，或在「更新记录」菜单中选择「粘贴链接导入」",
+    "lang:GachaLogPage_LogNotFound.zh-Hant": "未找到尋訪記錄資料來源：請先完成帳號授權，或在「更新記錄」選單中選擇「貼上連結匯入」",
+    "lang:GachaLogPage_LogNotFound.en": "No headhunting records data source found: authorize your account first, or choose 'Import via URL' in the 'Update Records' menu",
+    "lang:GachaLogPage_LogNotFound.ja": "ヘッドハンティング記録のデータソースが見つかりません：先にアカウント連携するか、「記録を更新」メニューから「リンクを取り込む」を選んでください",
+    "lang:GachaLogPage_LogNotFound.ko": "헤드헌팅 기록 데이터 소스를 찾지 못했습니다. 먼저 계정 인증을 하거나 '기록 업데이트' 메뉴에서 '링크 가져오기'를 선택하세요",
+    "lang:GachaLogPage_UrlNotFound.zh-Hans": "未找到寻访记录链接，请重新获取后再试",
+    "lang:GachaLogPage_UrlNotFound.zh-Hant": "未找到尋訪記錄連結，請重新取得後再試",
+    "lang:GachaLogPage_UrlNotFound.en": "Headhunting records link not found — fetch it again and retry",
+    "lang:GachaLogPage_UrlNotFound.ja": "ヘッドハンティング記録のリンクが見つかりません。再取得してから再試行してください",
+    "lang:GachaLogPage_UrlNotFound.ko": "헤드헌팅 기록 링크를 찾지 못했습니다. 다시 가져온 뒤 재시도하세요",
+    "lang:GachaLogPage_DeleteConfirmText.zh-Hans": "即将删除 UID {0} 的所有本地寻访记录，此操作不可恢复。",
+    "lang:GachaLogPage_DeleteConfirmText.zh-Hant": "即將刪除 UID {0} 的所有本地尋訪記錄，此操作不可恢復。",
+    "lang:GachaLogPage_DeleteConfirmText.en": "All local headhunting records for UID {0} will be deleted. This cannot be undone.",
+    "lang:GachaLogPage_DeleteConfirmText.ja": "UID {0} のローカルのヘッドハンティング記録をすべて削除します。この操作は元に戻せません。",
+    "lang:GachaLogPage_DeleteConfirmText.ko": "UID {0}의 모든 로컬 헤드헌팅 기록이 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+    "lang:GachaLogPage_ExportEmpty.zh-Hans": "当前账号没有可导出的寻访记录",
+    "lang:GachaLogPage_ExportEmpty.zh-Hant": "當前帳號沒有可匯出的尋訪記錄",
+    "lang:GachaLogPage_ExportEmpty.en": "The current account has no headhunting records to export",
+    "lang:GachaLogPage_ExportEmpty.ja": "現在のアカウントにはエクスポートできるヘッドハンティング記録がありません",
+    "lang:GachaLogPage_ExportEmpty.ko": "현재 계정에는 내보낼 헤드헌팅 기록이 없습니다",
+    "lang:GachaLogPage_RefetchFromCloudGame.zh-Hans": "重新获取寻访记录链接",
+    "lang:GachaLogPage_RefetchFromCloudGame.zh-Hant": "重新取得尋訪記錄連結",
+    "lang:GachaLogPage_RefetchFromCloudGame.en": "Refetch headhunting records link",
+    "lang:GachaLogPage_RefetchFromCloudGame.ja": "ヘッドハンティング記録のリンクを再取得",
+    "lang:GachaLogPage_RefetchFromCloudGame.ko": "헤드헌팅 기록 링크 다시 가져오기",
+    "lang:CloudGame_StatusDefault.zh-Hans": "获取寻访记录链接",
+    "lang:CloudGame_StatusDefault.zh-Hant": "取得尋訪記錄連結",
+    "lang:CloudGame_StatusDefault.en": "Fetch headhunting records link",
+    "lang:CloudGame_StatusDefault.ja": "ヘッドハンティング記録のリンクを取得",
+    "lang:CloudGame_StatusDefault.ko": "헤드헌팅 기록 링크 가져오기",
+    "lang:CloudGame_StatusOk.zh-Hans": "获取成功（玩家 {0}），正在同步寻访记录…",
+    "lang:CloudGame_StatusOk.zh-Hant": "取得成功（玩家 {0}），正在同步尋訪記錄…",
+    "lang:CloudGame_StatusOk.en": "Fetched (player {0}) — syncing headhunting records…",
+    "lang:CloudGame_StatusOk.ja": "取得成功（プレイヤー {0}）。ヘッドハンティング記録を同期中…",
+    "lang:CloudGame_StatusOk.ko": "가져오기 성공 (플레이어 {0}). 헤드헌팅 기록 동기화 중…"
   },
 
   // 设置页：语义在 settings.cs（C#，settings-provider.exe）里，走 provider 协议 settings-model

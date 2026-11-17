@@ -395,10 +395,16 @@ $("gpuInfo").textContent = `${GPU_NAME}（${VENDOR || "未识别"}）→ ` +
   (NVIDIA_ONLY ? "NVIDIA 专属项（DLSS / Reflex）已显示" : "非 N 卡：DLSS / Reflex 已隐藏");
 
 /* ===== 数据（本机注册表实测值起步） ===== */
-const RES_PRESETS = ["3840 × 2160","2560 × 1440","1920 × 1080","1600 × 900","1280 × 720"];
+/* 静态预览：真设置页是运行期 EnumDisplaySettings 枚举显示器模式（8K 屏才出 8K 档，不补超采样档）；
+   这里写死的是本机 4K 屏实测的 22 档，顺序与游戏下拉一致 */
+const RES_PRESETS = ["3840×2160","3200×1800","3072×1728","2560×1440","2048×1536",
+  "1920×1200","1920×1080","1760×990","1680×1050","1600×1200",
+  "1600×900","1366×768","1280×1024","1280×960","1280×720",
+  "1152×864","1128×634","1024×768","800×600","720×480",
+  "720×400","640×480"];
 const ddPreset  = makeDD($("ddPreset"),
   RES_PRESETS.map((s,i)=>({v:i,label:s})), 0,
-  v => { const [w,h] = RES_PRESETS[v].split(" × "); $("resW").value = w; $("resH").value = h; });
+  v => { const [w,h] = RES_PRESETS[v].split("×"); $("resW").value = w; $("resH").value = h; });
 
 const ddQuality = makeDD($("ddQuality"),
   [{v:1,label:"极高",raw:"1"},{v:2,label:"高",raw:"2"},{v:3,label:"中",raw:"3"},{v:4,label:"低",raw:"4"},{v:5,label:"极低",raw:"5"}], 4);
